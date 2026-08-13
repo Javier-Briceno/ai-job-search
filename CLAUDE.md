@@ -89,7 +89,7 @@ automatically from your Languages table above - don't duplicate them here. -->
 
 ## Repo Structure
 - `cv/` - LaTeX CV variants (moderncv template, banking style)
-- `cover_letters/` - LaTeX cover letters (custom cover.cls template)
+- `cover_letters/` - LaTeX cover letters (KOMA-Script `scrlttr2`, DIN 5008 Form B)
 - `.claude/skills/` - AI skill definitions for the application workflow
 - `.agents/skills/` - Job search CLI tools
 
@@ -118,8 +118,8 @@ After creating or updating a CV or cover letter, re-read the generated file and 
 - [ ] Nice-to-have requirements are highlighted where there is a match
 
 ### Consistency
-- [ ] CV follows the standard 2-page moderncv/banking format
-- [ ] Cover letter uses cover.cls template and established structure
+- [ ] CV follows the standard 1-page moderncv/banking format with the single-column `\cventry` override
+- [ ] Cover letter uses the `scrlttr2` DIN 5008 Form B template and established structure
 - [ ] Tone is consistent across CV and cover letter
 - [ ] No contradictions between CV and cover letter content
 
@@ -129,21 +129,26 @@ After creating or updating a CV or cover letter, re-read the generated file and 
 - [ ] Agentic coding / AI tooling references mention **Claude Code** by name
 - [ ] Cover letter is addressed to the correct person (or "Dear Hiring Manager" if unknown)
 - [ ] Cover letter fits approximately one page
-- [ ] CV section headings (`\section{...}`) and the References boilerplate line match the CV's language, not left as the English template defaults (see `05-cv-templates.md`)
+- [ ] CV section headings match the CV's language. The template defines them as macros in one block (`\headingCompetencies`, `\headingExperience`, ...) - localise by editing that block, never by rewriting individual `\section{...}` lines (see `05-cv-templates.md`)
+- [ ] **No `[` immediately after a command that takes an optional argument.** Two forms of the same trap, both silent:
+  - `\item {[Text]}`, never `\item [Text]` - unbraced, LaTeX reads the brackets as `\item`'s optional label and the text renders into the left margin, clipped off the page edge
+  - `\\{}[Text]`, never `\\[Text]` - `\\` takes an optional vertical space, so a placeholder starting a new address line loses its brackets or the whole line
+  Whitespace and newlines do not help; LaTeX skips them when scanning for `[`. Only `{}` or braces around the text stop it
 
 ### Compiled PDF verification (MANDATORY - never skip)
 Both documents MUST be compiled and visually inspected via the Read tool on the PDF output. "Looks fine in the .tex" is not acceptable - LaTeX page-break decisions are unpredictable. Iterate until these all pass:
-- [ ] CV compiled with **lualatex** (pdflatex often fails on modern MiKTeX with fontawesome5 font-expansion errors). Cover letter compiled with **xelatex** (cover.cls requires fontspec). If a custom template is active (registered via `/add-template`), compile with its declared command instead — see the `ACTIVE-TEMPLATE` block in `05-cv-templates.md`/`06-cover-letter-templates.md`.
-- [ ] **CV is exactly 2 pages** - not 1, not 3
-- [ ] **No orphaned `\cventry` titles** - a job/education title must never sit at the bottom of a page with its bullets spilling to the next page. Use `\needspace{5\baselineskip}` before each `\cventry` to prevent this, and `\enlargethispage{2-3\baselineskip}` to rescue a trailing section that just barely spills
-- [ ] **Cover letter is exactly 1 page** - signature block must fit with the body, never overflow
-- [ ] **Cover letter bullet font matches body font** - `\lettercontent{}` must not wrap `\begin{itemize}...\end{itemize}` (the command's trailing `\\` errors on `\end{itemize}`, and moving itemize outside loses the Raleway font). Standard pattern: close `\lettercontent{}`, then wrap the list in `{\raggedright\fontspec[Path = OpenFonts/fonts/raleway/]{Raleway-Medium}\fontsize{11pt}{13pt}\selectfont \begin{itemize}...\end{itemize}\par}`
+- [ ] CV compiled with **lualatex** (pdflatex often fails on modern MiKTeX with fontawesome5 font-expansion errors). Cover letter compiled with **xelatex** (the `scrlttr2` template uses fontspec), run twice. If a custom template is active (registered via `/add-template`), compile with its declared command instead — see the `ACTIVE-TEMPLATE` block in `05-cv-templates.md`/`06-cover-letter-templates.md`.
+- [ ] **CV is exactly 1 page** - not 2. Compile **twice**: the `n/m` footer is resolved from the `.aux` file and a stale one reports the previous run's page count
+- [ ] **No orphaned `\cventry` titles** - a job/education title must never sit at the bottom of a page with its bullets spilling to the next page. The overridden `\cventry` already issues `\needspace{4\baselineskip}` itself; use `\enlargethispage{2-3\baselineskip}` to rescue a trailing section that just barely spills
+- [ ] **Cover letter is exactly 1 page** - signature block must fit with the body, never overflow. Compile **twice**; a single run leaves `rerunfilecheck`/`hyperref` warnings
+- [ ] **Cover letter DIN 5008 Form B zones intact** - the recipient block is at most **6 lines** (the Anschriftzone is 27.3 mm; a seventh line overflows into the Betreff zone), no `An`/`Firma` prefix, and academic degrees sit *after* the name. Betreff bold, no `Betreff:` prefix, no underline, no full stop. `Anlagen` bold with no colon. Body ragged right, never justified
+- [ ] **No silent font substitution** - `grep 'Font shape' <file>.log` must return nothing. A missing bold shape renders `\textbf{}` at normal weight while the compile still succeeds, and neither the PDF nor the text layer reveals it
 
 ### ATS & keyword verification (CV)
 ATS parsers read the PDF's embedded text layer, not the rendered page. Extract it with `pdftotext -layout` and verify what a parser sees. `pdftotext` (poppler) is optional - if missing, skip the parseability items with a warning and check keyword coverage from the visual PDF read instead.
-- [ ] CV text layer extracts cleanly - no `(cid:*)` markers, `�` replacement characters, or text visible in the PDF but absent from the extraction
-- [ ] Email and phone appear as **literal text** in the extraction (icon-glyph noise like `MOBILE-ALT`/`Envelope` is harmless, but a contact detail carried only by an icon or hyperlink is invisible to ATS)
-- [ ] Reading order of the extracted text matches the visual order (single-column stock template is safe; multi-column custom templates are where this breaks)
+- [ ] CV text layer extracts cleanly - no `(cid:*)` markers, `�` replacement characters, or text visible in the PDF but absent from the extraction. The rule is an **allowlist, not ASCII**: flag any character above U+024F, but permit U+00C0-U+00FF (umlauts, accents, ß), U+2010-U+2027 (hyphens, dashes, and the German quotes U+201E / U+201C), and U+20AC (€, for budget figures). `Universität`, `für` and `2 Mio. €` are correct output and must pass; U+FFFD, the circle list marker and FontAwesome fallbacks must not. Run `python tools/verify_pdf.py <pdf>` rather than checking this by eye - and never judge it from a PowerShell console, which renders UTF-8 through a legacy OEM codepage and shows correct output as mojibake (`„` appears as `ÔÇ×`)
+- [ ] Email, phone and profile URLs appear as **literal text** in the extraction. `\href{...}{LinkedIn}` stores the address in a PDF annotation that most parsers never read - print the URL itself
+- [ ] Reading order matches visual order in **raw** mode too - check `pdftotext file.pdf -` without `-layout`. Dates and locations must sit with their own entry, not in a floating block after all of them. This is what the single-column `\cventry` override exists to guarantee; restoring moderncv's two-column `\cventry` reintroduces the fault
 - [ ] Posting keywords covered or honestly absent - synonym-only matches tightened to the posting's exact term where truthfully applicable, keywords the profile genuinely supports added to experience bullets, genuine gaps left visible and **never stuffed**
 
 ## graphify

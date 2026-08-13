@@ -102,8 +102,9 @@ per-file diff commands.
   Arial does not exist on the Linux CI image — Heros is a Helvetica clone and
   metrically compatible. One commented line switches to real Arial locally.
 
-  `cover.cls` and the bundled Lato/Raleway fonts remain in the tree but are no longer
-  used by the stock template and no longer have CI coverage.
+  The retired custom class and its bundled Lato/Raleway fonts have been removed so
+  setup documentation and agent instructions cannot accidentally select the old
+  layout. The stock smoke tests now compile the real `cover_example.tex` twice.
 
 - **Cover letter bullet labels were never bold** (`06-cover-letter-templates.md` 1.0.1
   -> 1.1.0). `\fontspec{Raleway-Medium}` loads a single face and declares no bold

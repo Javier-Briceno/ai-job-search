@@ -50,7 +50,7 @@ Install a LaTeX distribution to compile the generated `.tex` files to PDF:
 - **macOS:** [MacTeX](https://tug.org/mactex/)
 - **Linux:** `sudo apt install texlive-full` or `sudo dnf install texlive-scheme-full`
 
-The CV compiles with `lualatex` (pdflatex often fails on modern MiKTeX installs with `fontawesome5` font-expansion errors). The cover letter compiles with `xelatex` because `cover.cls` requires `fontspec` for its custom Lato/Raleway fonts.
+The CV compiles with `lualatex` (pdflatex often fails on modern MiKTeX installs with `fontawesome5` font-expansion errors). The DIN 5008 cover letter compiles with `xelatex` and uses KOMA-Script `scrlttr2`, `fontspec`, and TeX Gyre Heros.
 
 #### Minimal TeX install: TinyTeX/BasicTeX
 
@@ -69,7 +69,8 @@ Then install the template dependencies:
 ```bash
 tlmgr install \
   moderncv fontawesome5 fontawesome6 academicons import luatexbase pgf \
-  titlesec textpos xltxtra xunicode cite realscripts needspace
+  titlesec textpos xltxtra xunicode cite realscripts needspace \
+  koma-script babel-german geometry tex-gyre
 ```
 
 For BasicTeX/MacTeX, make sure the TeX binary directory is on `PATH` first (for example via `/Library/TeX/texbin`), then run the same `tlmgr install ...` command.
@@ -77,24 +78,10 @@ For BasicTeX/MacTeX, make sure the TeX binary directory is on `PATH` first (for 
 Quick smoke tests after setup:
 
 ```bash
-cd cv && lualatex -interaction=nonstopmode -halt-on-error main_example.tex && cd ..
-
-SMOKE_DIR="$(mktemp -d /tmp/ai-job-cover-smoke.XXXXXX)"
-cp -R cover_letters/cover.cls cover_letters/OpenFonts "$SMOKE_DIR/"
-cat >"$SMOKE_DIR/cover_smoke.tex" <<'EOF'
-\documentclass[]{cover}
-\begin{document}
-\namesection{Test}{Candidate}{test@example.com}
-\companyname{Example Company}
-\companyaddress{123 Hiring Street\\Example City}
-\currentdate{\today}
-\lettercontent{Dear Hiring Manager,}
-\lettercontent{This smoke test verifies that xelatex can load cover.cls and the bundled fonts.}
-\closing{Sincerely,}
-\signature{Test Candidate}
-\end{document}
-EOF
-(cd "$SMOKE_DIR" && xelatex -interaction=nonstopmode -halt-on-error cover_smoke.tex)
+(cd cv && lualatex -interaction=nonstopmode -halt-on-error main_example.tex && lualatex -interaction=nonstopmode -halt-on-error main_example.tex)
+(cd cover_letters && xelatex -interaction=nonstopmode -halt-on-error cover_example.tex && xelatex -interaction=nonstopmode -halt-on-error cover_example.tex)
+python3 tools/verify_pdf.py cv/main_example.pdf --pages 1 --min-chars 100 --strict
+python3 tools/verify_pdf.py cover_letters/cover_example.pdf --pages 1 --min-chars 100 --strict
 ```
 
 #### Windows: Basic MiKTeX
@@ -113,7 +100,7 @@ initexmf --set-config-value=[MPM]AutoInstall=1
 If you'd rather not rely on on-the-fly installs at all (for example, for a fully offline compile later), pre-install the same package set the macOS TinyTeX section above lists, using MiKTeX's package manager:
 
 ```powershell
-mpm --admin --install=moderncv --install=fontawesome5 --install=fontawesome6 --install=academicons --install=import --install=luatexbase --install=pgf --install=titlesec --install=textpos --install=xltxtra --install=xunicode --install=cite --install=realscripts --install=needspace
+mpm --admin --install=moderncv --install=fontawesome5 --install=fontawesome6 --install=academicons --install=import --install=luatexbase --install=pgf --install=titlesec --install=textpos --install=xltxtra --install=xunicode --install=cite --install=realscripts --install=needspace --install=koma-script --install=babel-german --install=geometry --install=tex-gyre
 ```
 
 Drop `--admin` if MiKTeX is installed for the current user only. If a package name doesn't resolve, `mpm --find=<name>` searches the repository for the correct name.
@@ -121,24 +108,18 @@ Drop `--admin` if MiKTeX is installed for the current user only. If a package na
 Quick smoke tests after setup (PowerShell):
 
 ```powershell
-Set-Location cv; lualatex -interaction=nonstopmode -halt-on-error main_example.tex; Set-Location ..
+Push-Location cv
+lualatex -interaction=nonstopmode -halt-on-error main_example.tex
+lualatex -interaction=nonstopmode -halt-on-error main_example.tex
+Pop-Location
 
-$SmokeDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "ai-job-cover-smoke-$(Get-Random)")
-Copy-Item cover_letters\cover.cls, cover_letters\OpenFonts -Destination $SmokeDir -Recurse
-@'
-\documentclass[]{cover}
-\begin{document}
-\namesection{Test}{Candidate}{test@example.com}
-\companyname{Example Company}
-\companyaddress{123 Hiring Street\\Example City}
-\currentdate{\today}
-\lettercontent{Dear Hiring Manager,}
-\lettercontent{This smoke test verifies that xelatex can load cover.cls and the bundled fonts.}
-\closing{Sincerely,}
-\signature{Test Candidate}
-\end{document}
-'@ | Set-Content (Join-Path $SmokeDir "cover_smoke.tex")
-Push-Location $SmokeDir; xelatex -interaction=nonstopmode -halt-on-error cover_smoke.tex; Pop-Location
+Push-Location cover_letters
+xelatex -interaction=nonstopmode -halt-on-error cover_example.tex
+xelatex -interaction=nonstopmode -halt-on-error cover_example.tex
+Pop-Location
+
+python tools/verify_pdf.py cv/main_example.pdf --pages 1 --min-chars 100 --strict
+python tools/verify_pdf.py cover_letters/cover_example.pdf --pages 1 --min-chars 100 --strict
 ```
 
 ### Optional: pdftotext (for the ATS check)
@@ -282,7 +263,7 @@ Set-Location cv; lualatex main_<company>_<role>.tex; Set-Location ..
 Set-Location cover_letters; xelatex cover_<company>_<role>.tex; Set-Location ..
 ```
 
-These commands apply to the stock templates (moderncv CV, `cover.cls` cover letter). If you'd rather use your own LaTeX template, run `/add-template` — it captures the template's compile engine, fonts, style rules, and page limit, test-compiles it, and wires it into `/apply`. See the "LaTeX templates" section in the README.
+These commands apply to the stock templates (moderncv CV, KOMA-Script `scrlttr2` cover letter). If you'd rather use your own LaTeX template, run `/add-template` — it captures the template's compile engine, fonts, style rules, and page limit, test-compiles it, and wires it into `/apply`. See the "LaTeX templates" section in the README.
 
 ## 8. Pulling upstream updates into your fork
 
@@ -310,11 +291,11 @@ Make sure Bun is installed and you ran `bun install` in each CLI directory. The 
 
 ### LaTeX compilation errors
 - CV: uses `lualatex` (pdflatex often fails on modern MiKTeX with `fontawesome5` font-expansion errors; lualatex handles the same sources cleanly)
-- Cover letter: uses `xelatex` (for custom fonts in `OpenFonts/fonts/`)
+- Cover letter: uses `xelatex` for the `fontspec`-based TeX Gyre Heros configuration
 - Make sure your LaTeX distribution includes the `moderncv` package
 
 ### Fonts not found in cover letter
-The cover letter template expects fonts in `cover_letters/OpenFonts/fonts/`. Make sure this directory exists and contains the Lato and Raleway font files.
+The stock cover letter uses TeX Gyre Heros from your TeX distribution; it does not require bundled font files. Install the `tex-gyre` package, refresh the TeX filename database, and compile again. If you activated a custom template through `/add-template`, follow that template's `TEMPLATE.md` font instructions instead.
 
 ### Stale `.claude/settings.local.json` from an older clone
 Shared Claude Code permissions now live in `.claude/settings.json` (scoped to `bun run`, `python salary_lookup.py`, and `python3 salary_lookup.py`). Earlier versions of this repo committed a broader `.claude/settings.local.json` that pre-approved `Bash(curl:*)`, `Bash(python:*)` and `Bash(bun:*)`. If you cloned before that change, git leaves the old file behind in your working copy, and its permissions still apply on top of `settings.json`. Delete it (or trim it to your own personal overrides):

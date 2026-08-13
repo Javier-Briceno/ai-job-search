@@ -1,169 +1,267 @@
-%% Example CV - [YOUR_NAME]
-%% Comprehensive overview of all competencies, experience, and achievements.
-%% Use as a master reference when tailoring role-specific CVs.
+%% Lebenslauf-Grundgeruest - [YOUR_NAME]
 %%
-%% SETUP: Run /setup to populate this with your actual information.
-%% Compile with: lualatex main_example.tex
-%% (pdflatex often fails on modern MiKTeX with fontawesome5 font-expansion errors.)
+%% Das ist eine einseitige, bereits getrimmte Vorlage - KEINE vollstaendige
+%% Sammlung aller Kompetenzen und Stationen. Der Umfang unten ist das
+%% Maximum, das auf eine Seite passt, nicht eine Auswahlliste.
+%%
+%% Datenquelle fuer jede inhaltliche Aussage ist
+%% .claude/skills/job-application-assistant/01-candidate-profile.md.
+%% Beim Zuschneiden auf eine Stelle wird von dort ausgewaehlt und hier
+%% eingesetzt - nicht umgekehrt. Diese Datei traegt die Struktur und die
+%% ATS-Korrekturen im Praeambel-Block, nicht den Datenbestand.
+%%
+%% SETUP: /setup ausfuehren, um echte Daten einzutragen.
+%% Kompilieren mit: lualatex main_example.tex
+%% (pdflatex scheitert auf modernem MiKTeX oft an fontawesome5.)
+%%
+%% SEITENBUDGET: genau 1 Seite. Der Standardumfang unten ist bereits auf
+%% diese Grenze getrimmt - zwei Positionen, ein Projekt, zwei Abschluesse.
+%% Wer eine Position ergaenzt, streicht dafuer an anderer Stelle.
+%%
+%% PLATZHALTER-SYNTAX: Platzhalter am Anfang eines \item immer klammern -
+%% \item {[Text]}, niemals \item [Text]. Ohne Klammern liest LaTeX die
+%% eckigen Klammern als optionales Label-Argument von \item; der Text
+%% landet im linken Rand und wird an der Seitenkante abgeschnitten.
 
 \documentclass[11pt,a4paper,sans]{moderncv}
 \moderncvstyle{banking}
 \moderncvcolor{blue}
 
-% Force both first and last name AND section headings to render in moderncv
-% blue (color1). Default banking on lualatex+MiKTeX leaves these black, which
-% looks inconsistent with the rest of the blue accent scheme.
+% Vor- und Nachname sowie Abschnittsueberschriften in moderncv-Blau (color1).
+% Banking laesst diese unter lualatex+MiKTeX sonst schwarz.
 \renewcommand*{\firstnamestyle}[1]{{\fontsize{34}{36}\bfseries\upshape\color{color1}#1}}
 \renewcommand*{\lastnamestyle}[1]{{\fontsize{34}{36}\bfseries\upshape\color{color1}#1}}
 \renewcommand*{\sectionstyle}[1]{{\sectionfont\color{color1}#1}}
 
-\usepackage[utf8]{inputenc}
+% ATS: Die FontAwesome-Kontaktsymbole haben kein Unicode-Mapping und werden
+% von pdftotext als Glyphenname ("MOBILE-ANDROID-ALT") oder U+FFFD extrahiert.
+% Leeren - Adresse, Nummer und E-Mail stehen ohnehin als Text daneben.
+\renewcommand*{\mobilephonesymbol}{}
+\renewcommand*{\phonesymbol}{}
+\renewcommand*{\emailsymbol}{}
+\renewcommand*{\addresssymbol}{}
+\renewcommand*{\homepagesymbol}{}
+
+% ATS: Die Standard-Aufzaehlungsmarke von moderncv ist ein kleiner Kreis ohne
+% Unicode-Mapping und erscheint als Fremdzeichen in jeder Bullet-Zeile.
+\renewcommand*{\labelitemi}{-}
+
+% ATS: Das Trennzeichen der Kontaktzeile ist \rmfamily\textbullet und landet
+% als blosses 0xB7-Byte im Textlayer - ungueltiges UTF-8, wird zu U+FFFD.
+\renewcommand*{\makeheaddetailssymbol}{\hspace{0.8em}\textbar\hspace{0.8em}}
+
+\usepackage[ngerman]{babel}
 \usepackage{hyperref}
 \hypersetup{
     colorlinks=true,
     linkcolor=blue,
     filecolor=magenta,
     urlcolor=blue,
-    pdftitle={[YOUR_NAME] - CV},
-    pdfpagemode=FullScreen,
+    pdftitle={[YOUR_NAME] - Lebenslauf},
+    pdfauthor={[YOUR_NAME]},
+    pdfsubject={Lebenslauf},
 }
 \usepackage[scale=0.80]{geometry}
-\usepackage{import}
+\usepackage{needspace}
 
-% personal data
-\name{[First]}{[Last]}
-\address{[Your Address, City, Country]}{}{}
-\phone[mobile]{[+XX XXXXXXXXXX]}
-\email{[your.email@example.com]}
-\extrainfo{\href{[https://linkedin.com/in/your-profile]}{LinkedIn}, \href{[https://github.com/your-username]}{GitHub}}
+% ATS: Blocksatz laesst LaTeX trennen und zerreisst deutsche Komposita ueber
+% den Zeilenumbruch ("Investi-\ntionen"), sodass ein Screening-Parser das
+% Schluesselwort nie findet. Flattersatz plus prohibitive Trennstrafe haelt
+% jeden Begriff zusammen - auch echte Bindestriche wie Soll-Ist-Vergleich.
+\raggedright
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+
+% ------------------------------------------------------------
+%     EINTRAGSFORMAT: EINSPALTIG (ATS)
+% ------------------------------------------------------------
+% Das zweispaltige \cventry von banking setzt Ort und Datum in eine
+% rechtsbuendige Spalte. Im Rohtext-Modus von pdftotext erscheinen diese
+% Felder als eigener Block hinter allen Eintraegen, sodass ein Parser
+% Datumsangaben dem falschen oder keinem Arbeitgeber zuordnet.
+% Einspaltig extrahiert jeder Eintrag sequenziell und vollstaendig.
+%
+% Argumente: {1 Datum}{2 Titel}{3 Organisation}{4 Ort}{5 Note}{6 Beschreibung}
+\renewcommand*{\cventry}[6]{%
+  \needspace{4\baselineskip}%
+  \noindent{\bfseries #3}%
+  \ifx&#2&\else, #2\fi\par
+  \noindent{\itshape #1%
+    \ifx&#4&\else\ \textbar\ #4\fi
+    \ifx&#5&\else\ \textbar\ #5\fi}\par
+  \vspace{1pt}#6\par\vspace{5pt}}
+
+% ------------------------------------------------------------
+%     ABSCHNITTSNAMEN
+% ------------------------------------------------------------
+% Lokalisierung ausschliesslich ueber diesen Block. Abschnittsueberschriften
+% uebersetzen sich nicht von selbst - siehe 05-cv-templates.md.
+
+% DEUTSCH (Standard):
+\newcommand{\headingCompetencies}{Kernkompetenzen}
+\newcommand{\headingExperience}{Berufserfahrung}
+\newcommand{\headingProjects}{Projekte}
+\newcommand{\headingEducation}{Ausbildung}
+\newcommand{\headingLanguages}{Sprachen}
+\newcommand{\headingAwards}{Auszeichnungen}
+
+% ENGLISCH - bei englischsprachiger Ausschreibung diesen Block aktivieren und
+% den deutschen auskommentieren. Zusaetzlich zu aendern:
+%   - \usepackage[ngerman]{babel} -> \usepackage[english]{babel}
+%   - \glqq ... \grqq{} im Kurzprofil -> "..." (\glqq stammt aus babel-ngerman
+%     und ist unter [english] nicht definiert, der Lauf bricht sonst ab)
+%   - Datumsformat und Notenangaben ("Note: 1,7" -> "Grade: 1.7 (German scale)")
+%
+% \newcommand{\headingCompetencies}{Core Competencies}
+% \newcommand{\headingExperience}{Professional Experience}
+% \newcommand{\headingProjects}{Projects}
+% \newcommand{\headingEducation}{Education}
+% \newcommand{\headingLanguages}{Languages}
+% \newcommand{\headingAwards}{Honors and Awards}
+
+% Persoenliche Daten
+\name{[Vorname]}{[Nachname]}
+\address{[Strasse Hausnummer, PLZ Ort]}{}{}
+% Die Platzhalternummer hat absichtlich die Form einer echten Nummer: die
+% Pruefung "phone in text" in tools/verify_pdf.py sucht eine Ziffernfolge,
+% und ein Platzhalter aus X-en wuerde die eigene Beispieldatei durchfallen
+% lassen. /setup ersetzt den Wert ohnehin.
+\phone[mobile]{[+49 151 0000000]}
+\email{[vorname.nachname@example.com]}
+% ATS: Profil-URLs sichtbar als Text ausgeben. \href{...}{LinkedIn} speichert
+% die Adresse in einer PDF-Annotation, die die meisten Parser nie lesen - sie
+% sehen nur das Wort "LinkedIn" und extrahieren gar keine Adresse.
+\extrainfo{\href{[https://linkedin.com/in/dein-profil]}{linkedin.com/in/[dein-profil]} \textbar{}
+           \href{[https://github.com/dein-username]}{github.com/[dein-username]}}
 
 \begin{document}
 
 \makecvtitle
 
 % ============================================================
-%     PROFILE STATEMENT
+%     KURZPROFIL
 % ============================================================
 
 \vspace{6pt}
-\small{[Write a 3-5 line profile statement tailored to the role you're applying for. Focus on what makes you uniquely qualified. Example: "Data scientist with a PhD in [field] and X years of industry experience. Combines deep domain expertise in [domain] with strong applied machine learning and Python development skills. Experienced in developing end-to-end ML pipelines, from data ingestion to stakeholder-facing dashboards."]}
+\small{[Drei Zeilen, zugeschnitten auf die Zielstelle. Was gewinnt der Arbeitgeber? Beispiel: \glqq Informatikstudent im vierten Semester, Schwerpunkt Datenverarbeitung. Praktische Erfahrung in Python und SQL aus [Projekt]. Sucht eine Werkstudentenstelle, in der [konkreter Beitrag].\grqq{}]}
 
 % ============================================================
-%     CORE COMPETENCIES
+%     KERNKOMPETENZEN
 % ============================================================
 
-\section{Core Competencies}
+\section{\headingCompetencies}
 \vspace{1pt}
 \begin{itemize}
 
-\item \textbf{[Skill Category 1]}: [Specific skills, frameworks, tools. Be concrete.]
+\item \textbf{[Kompetenzfeld 1]}: [Konkrete Werkzeuge, Sprachen, Frameworks.]
 
-\item \textbf{[Skill Category 2]}: [Specific skills, frameworks, tools.]
+\item \textbf{[Kompetenzfeld 2]}: [Konkrete Werkzeuge, Sprachen, Frameworks.]
 
-\item \textbf{[Skill Category 3]}: [Specific skills, frameworks, tools.]
+\item \textbf{[Kompetenzfeld 3]}: [Methoden, Fachwissen, Vorgehensweisen.]
 
-\item \textbf{[Skill Category 4]}: [Domain expertise, methods, approaches.]
-
-\item \textbf{[Skill Category 5]}: [Tools, platforms, software.]
+\item \textbf{[Kompetenzfeld 4]}: [Werkzeuge, Plattformen, Software.]
 
 \end{itemize}
 
 % ============================================================
-%     PROFESSIONAL EXPERIENCE
+%     BERUFSERFAHRUNG
 % ============================================================
+% Datumsformat MM/JJJJ, Bereichstrennung mit einfachem ASCII-Bindestrich.
+% Ein doppeltes -- wird zum Halbgeviertstrich (U+2013); viele Parser
+% erkennen dann keinen Zeitraum. Siehe 05-cv-templates.md.
 
-\section{Professional Experience}
-\vspace{3pt}
-\begin{itemize}
-
-% --- Most Recent Role ---
-\item{\cventry{[YYYY-Present]}{[Job Title]}{[Company]}{[City, Country]}{}{\vspace{1pt}
-\begin{itemize}
-    \item [Achievement or responsibility 1 - be specific, use numbers where possible]
-    \item [Achievement or responsibility 2]
-    \item [Achievement or responsibility 3]
-    \item [Achievement or responsibility 4]
-\end{itemize}}}
-
+\section{\headingExperience}
 \vspace{3pt}
 
-% --- Previous Role ---
-\item{\cventry{[YYYY-YYYY]}{[Job Title]}{[Company]}{[City, Country]}{}{\vspace{1pt}
+\cventry{[MM/JJJJ-heute]}{[Position]}{[Unternehmen]}{[Ort]}{}{
 \begin{itemize}
-    \item [Achievement or responsibility 1]
-    \item [Achievement or responsibility 2]
-    \item [Achievement or responsibility 3]
-\end{itemize}}}
+    \item {[Aufgabe oder Erfolg 1 - konkret, moeglichst mit Zahlen.]}
+    \item {[Aufgabe oder Erfolg 2]}
+    \item {[Aufgabe oder Erfolg 3]}
+\end{itemize}}
 
+\cventry{[MM/JJJJ-MM/JJJJ]}{[Position]}{[Unternehmen]}{[Ort]}{}{
+\begin{itemize}
+    \item {[Aufgabe oder Erfolg 1]}
+    \item {[Aufgabe oder Erfolg 2]}
+\end{itemize}}
+
+% ============================================================
+%     PROJEKTE
+% ============================================================
+% Feste Eintragsform, damit generierte Lebenslaeufe das Format nicht
+% jedes Mal neu erfinden. Tragende Sektion fuer das Informatik-Profil.
+
+\section{\headingProjects}
 \vspace{3pt}
 
-% --- Earlier Role ---
-\item{\cventry{[YYYY-YYYY]}{[Job Title]}{[Company]}{[City, Country]}{}{\vspace{1pt}
+\cventry{[MM/JJJJ]}{[Technologien / Rolle]}{[Projektname]}{}{}{
 \begin{itemize}
-    \item [Achievement or responsibility 1]
-    \item [Achievement or responsibility 2]
-\end{itemize}}}
-
-\end{itemize}
+    \item {[Was es tut und was du gebaut hast - eine Zeile.]}
+    \item {[Ergebnis, Umfang oder Wirkung. Beleg verlinken: \href{[URL]}{github.com/[user]/[repo]}]}
+\end{itemize}}
 
 % ============================================================
-%     EDUCATION
+%     AUSBILDUNG
 % ============================================================
+% Argument 5 ist das Notenfeld. Bei laufendem Studium den
+% voraussichtlichen Abschluss angeben - ein geschlossener Zeitraum
+% liest sich sonst wie ein bereits erworbener Abschluss.
 
-\section{Education}
-\vspace{1pt}
-\begin{itemize}
-
-\item{\cventry{[YYYY-YYYY]}{[Degree] in [Field]}{[Institution]}{[City, Country]}{}{\vspace{1pt}
-Thesis: ``[Thesis Title].'' [Brief description of research focus.]
-}}
-
+\section{\headingEducation}
 \vspace{3pt}
 
-\item{\cventry{[YYYY-YYYY]}{[Degree] in [Field]}{[Institution]}{[City, Country]}{}{\vspace{1pt}
-[Brief description or key topics.]
-}}
+\cventry{[MM/JJJJ-heute]}{[Studiengang]}{[Hochschule]}{[Ort]}{Note: [X,X]}{
+[Schwerpunkte: Themen.] Voraussichtlicher Abschluss: [MM/JJJJ].
+}
 
-\end{itemize}
+\cventry{[MM/JJJJ-MM/JJJJ]}{[Abschluss]}{[Schule / Hochschule]}{[Ort]}{Note: [X,X]}{
+[Relevante Schwerpunkte oder Abschlussarbeit.]
+}
 
 % ============================================================
-%     LANGUAGES
+%     SPRACHEN
 % ============================================================
 
-\section{Languages}
+\section{\headingLanguages}
 \vspace{1pt}
 \begin{itemize}
-\item [Language 1] (native), [Language 2] (fluent), [Language 3] (intermediate).
+\item {[Sprache 1] (Muttersprache), [Sprache 2] ([Niveau, z.\,B. C1]), [Sprache 3] ([Niveau]).}
 \end{itemize}
 
 % ============================================================
-%     PUBLICATIONS (optional)
+%     AUSZEICHNUNGEN (optional)
 % ============================================================
-
-\section{Publications}
-\vspace{1pt}
-\begin{itemize}
-\item [Author(s)] ([Year]). [Title]. [Journal/Conference]. \href{[DOI_URL]}{DOI link}
-\end{itemize}
-
-% ============================================================
-%     HONORS AND AWARDS (optional)
-% ============================================================
-
-\section{Honors and Awards}
-\vspace{1pt}
-\begin{itemize}
-\item{\textbf{[Award Name]} -- [Event/Organization] ([Year]).}
-\end{itemize}
+% Im Standardumfang deaktiviert, damit das 1-Seiten-Budget aufgeht.
+% Einkommentieren und dafuer an anderer Stelle streichen.
+% Hinweis: einfacher ASCII-Bindestrich, kein --. Ein Halbgeviertstrich
+% (U+2013) landet unter lualatex als ungueltiges Byte im Textlayer.
+%
+% \section{\headingAwards}
+% \vspace{1pt}
+% \begin{itemize}
+% \item {\textbf{[Auszeichnung]} - [Veranstaltung / Organisation] ([Jahr]).}
+% \end{itemize}
 
 % ============================================================
-%     REFERENCES
+%     PUBLIKATIONEN - nur akademische Laufbahn (PhD-Track)
 % ============================================================
+% Fuer Werkstudenten- und Industriestellen bewusst deaktiviert: die Sektion
+% ist akademischer Ballast und verleitet zum Auffuellen. Nur einkommentieren,
+% wenn die Zielstelle wissenschaftliche Publikationen ausdruecklich erwartet.
+%
+% \newcommand{\headingPublications}{Publikationen}
+% \section{\headingPublications}
+% \vspace{1pt}
+% \begin{itemize}
+% \item {[Autor(en)] ([Jahr]). [Titel]. [Journal/Konferenz]. \href{[DOI_URL]}{DOI}}
+% \end{itemize}
 
-\section{References}
-\vspace{1pt}
-\begin{itemize}
-\item{Available upon request.}
-\end{itemize}
+% ============================================================
+%     KEINE REFERENZEN-SEKTION
+% ============================================================
+% "Referenzen auf Anfrage" ist eine angloamerikanische Konvention ohne
+% Funktion in Deutschland - Arbeitszeugnisse liegen als Anlagen bei.
+% Die Zeile kostet eine Ueberschrift und transportiert null Information.
 
 \end{document}

@@ -92,7 +92,7 @@ Also read the most recent existing CV and cover letter files for concrete struct
 ### Cover Letter (`cover_letters/cover_<company>_<role><COVER_EXT>`)
 - **Match the language of the job posting** (Danish posting -> Danish cover letter, English posting -> English cover letter)
 - Follow the structure from `06-cover-letter-templates.md`
-- Use the `cover.cls` template
+- Use the `scrlttr2` DIN 5008 Form B template (see `06-cover-letter-templates.md`)
 - Tailor the opening paragraph to the specific role and company
 - Address to a named person if available in the posting, otherwise "Dear Hiring Manager" (or equivalent in posting language)
 - Keep to approximately one page
@@ -216,7 +216,7 @@ cd ../cover_letters && xelatex -interaction=nonstopmode cover_<company>_<role>.t
 ```
 
 - **Stock CV** uses **lualatex** — pdflatex fails on modern MiKTeX with fontawesome5 font-expansion errors. lualatex handles the same sources cleanly.
-- **Stock cover letter** uses **xelatex** — cover.cls requires fontspec.
+- **Stock cover letter** uses **xelatex**, run twice — the `scrlttr2` template uses fontspec, and a single run leaves `rerunfilecheck`/`hyperref` warnings.
 - **Custom template active:** run its declared `<CV_COMPILE>`/`<COVER_COMPILE>` command instead, substituting the actual filename for `<file>`. Never fall back to lualatex/xelatex when a custom template's compile command is a different toolchain (e.g. `typst compile`) — that command is what the manifest actually verified in `/add-template` Step 4.
 
 If either compile fails, fix the error and re-compile until clean.
@@ -234,7 +234,9 @@ Read both PDFs via the Read tool and verify:
 **Cover letter (`cover_letters/cover_<company>_<role>.pdf`):**
 - [ ] Exactly 1 page
 - [ ] Signature block visible, not cut off or pushed to a second page
-- [ ] Bullet list font matches surrounding body text (both should be Raleway-Medium)
+- [ ] Recipient block is at most **6 lines** (the DIN Anschriftzone is 27.3 mm; a seventh line overflows into the Betreff zone)
+- [ ] Betreff bold, no `Betreff:` prefix, no underline, no full stop; `Anlagen` bold with no colon
+- [ ] `grep 'Font shape' cover_<company>_<role>.log` returns nothing — a substituted shape renders at the wrong weight while the compile succeeds
 
 ### 5c. Iterate until clean
 
@@ -243,7 +245,8 @@ If the layout has problems, edit the source files (`<CV_EXT>`/`<COVER_EXT>`) and
 - **Orphaned CV entry title:** `\usepackage{needspace}` in preamble, then `\needspace{5\baselineskip}` immediately before the problematic `\cventry`
 - **CV spills to page 3 with only a trailing section:** `\enlargethispage{2-3\baselineskip}` before a late section
 - **Substantial content on page 3:** cut content using **relevance-weighted cutting** (see `05-cv-templates.md` → "Relevance-weighted cutting"). Score each candidate line by (a) relevance to THIS posting's keywords and responsibilities, (b) uniqueness (is it duplicated elsewhere?), (c) narrative load (does the cover letter depend on it?). Cut the lowest-total-score line first, regardless of section. Do NOT mechanically apply a static section-based priority order — an older-role bullet that hits posting keywords is worth more than a recent-role bullet that does not.
-- **Cover letter itemize breaks compile or uses wrong font:** close `\lettercontent{}` before the list, wrap the list in `{\raggedright\fontspec[Path = OpenFonts/fonts/raleway/]{Raleway-Medium}\fontsize{11pt}{13pt}\selectfont \begin{itemize}...\end{itemize}\par}`
+- **Cover letter runs to 2 pages:** cut body paragraph 2. Never shrink the margins or add `setspace` — that breaks DIN 5008 conformance to hide a content problem.
+- **Recipient address overflows the Anschriftzone:** the cap is 6 lines. Drop the contact person's line before dropping the street.
 - **Cover letter spills to 2 pages:** trim using the same relevance-weighted logic. First cut: sentences that restate what a bullet already said. Second cut: a bullet that does not hit posting keywords. Last resort: a bullet that does hit posting keywords. Never reduce geometry or line spacing.
 
 Do not proceed to Step 6 until both PDFs pass inspection.
@@ -252,24 +255,31 @@ Do not proceed to Step 6 until both PDFs pass inspection.
 
 An ATS parser reads the PDF's embedded **text layer**, not the rendered page — a CV that passed visual inspection can still extract as garbage (icon glyphs where the contact details should be, scrambled reading order in multi-column layouts). This step verifies what a parser actually sees. It applies to the **CV only**; cover letters rarely go through keyword screening.
 
-**Availability check:** run `pdftotext -v`. `pdftotext` (poppler) is an optional dependency, not part of TeX distributions. If it is missing, print a one-line warning that the mechanical parse check is skipped, do the keyword-coverage check (item 3 below) against your visual Read of the PDF instead, and note the degraded mode in the Step 6 report. Same graceful-skip pattern as the salary lookup.
-
-**1. Extract the text layer:**
+**1. Run the mechanical checks.** They are implemented in `tools/verify_pdf.py` — do not re-derive them by eye:
 
 ```bash
-cd cv && pdftotext -layout main_<company>_<role>.pdf main_<company>_<role>.txt
+python tools/verify_pdf.py cv/main_<company>_<role>.pdf --pages 1 --check-placeholders
 ```
 
-Read the `.txt` file.
+`--check-placeholders` is correct **here** because this is a tailored document: any surviving `[Placeholder]` is a drafting miss. Never pass that flag against a template — templates are supposed to be full of placeholders.
 
-**2. Parseability checks** on the extracted text:
+The tool covers: glyph-name leaks, disallowed characters, hyphenation splits, fused compounds, orphan list markers, profile-URL visibility, email, phone, page count, and (with the flag) placeholders.
 
-- [ ] **Text extracted at all**, with no garbage runs: no `(cid:NNN)` markers, no `�` replacement characters, no stretches of missing text that are visible in the PDF
-- [ ] **Email and phone survive as literal text.** Icon fonts extract as glyph names (the stock template's contact line extracts as `MOBILE-ALT [+XX ...] • Envelope [your.email@...]`) — that noise is harmless, but the actual address and digits must be present. A contact detail carried only by an icon or a hyperlink target (like the `LinkedIn` link text) is invisible to an ATS; the email must be printed as text.
-- [ ] **Reading order matches the visual order** — section headings appear in the same sequence as on the page, and lines from different sections are not interleaved. The stock banking template is single-column and safe; custom templates registered via `/add-template` with sidebars or multi-column layouts are where this breaks.
-- [ ] **Dates recognizable** — each role and degree has its years present in the extraction.
+**Availability:** `pdftotext`/`pdfinfo` come from poppler, an optional dependency that is **not** part of MiKTeX or TeX Live. If they are missing the tool prints `SKIP` with the reason and exits 0. **A SKIP is not a pass.** Do the keyword-coverage check (item 3 below) against your visual Read of the PDF instead, and report the degraded mode in Step 6. Same graceful-skip pattern as the salary lookup.
 
-Failures here are template-level problems: fix them in the `<CV_EXT>` source (e.g. print the email as text rather than icon-only), then re-run 5a–5c and re-extract. If a custom template's layout fundamentally scrambles extraction order, tell the user prominently — they may be trading ATS compatibility for looks.
+**2. Read the extraction yourself** for the things no regex catches:
+
+```bash
+cd cv && pdftotext main_<company>_<role>.pdf -
+```
+
+Use **raw** mode, without `-layout`. `-layout` reconstructs the visual columns and hides the exact fault you are looking for:
+
+- [ ] **Reading order** — each entry's dates and location sit with that entry, not in a floating block after all of them. If they float, moderncv's two-column `\cventry` has been restored; re-apply the single-column override from `05-cv-templates.md`.
+- [ ] **Nothing visible in the PDF is missing from the extraction** — text present on the page but absent here is usually a placeholder that was parsed as an `\item` label and clipped into the margin.
+- [ ] **Dates recognizable** — every role and degree shows a start and an end joined by an ASCII hyphen.
+
+Failures here are template-level problems: fix them in the `<CV_EXT>` source, then re-run 5a–5c and re-extract. If a custom template's layout fundamentally scrambles extraction order, tell the user prominently — they may be trading ATS compatibility for looks.
 
 **3. Keyword coverage.** Reuse the required/preferred keyword list you extracted in Step 1 — do not re-derive it. Match each keyword against the extracted text, **in the posting's language** (when the posting's language differs from the CV language — e.g. a Danish posting against an English CV — a concept the CV legitimately covers in its own language counts as synonym-only; note the language difference). Report a table:
 
@@ -282,11 +292,30 @@ Failures here are template-level problems: fix them in the `<CV_EXT>` source (e.
 - **missing (have it)** — the profile shows the candidate genuinely has this skill but the CV never says it: add it where it fits naturally, preferring experience bullets (concrete evidence) over the profile statement, then re-run 5a–5c.
 - **missing (gap)** — a genuine gap: leave it missing. **Never stuff keywords.** This is the same honesty rule the reviewer follows — a gap gets acknowledged in the cover letter's framing, not hidden in the CV.
 
-**4. Clean up:** delete the extracted `.txt` file.
+**4. Clean up:** delete any extracted `.txt` file you wrote to disk.
 
 ### 5e. Clean up build artifacts
 
 After the final clean compile, delete intermediate build files the compile command left behind — LaTeX toolchains leave `.aux`/`.log`/`.out`; a custom template's toolchain may leave nothing beyond the PDF. Keep the source file and the `.pdf`.
+
+**Do not delete the `.aux` before the final compile.** Run the compile **twice**: the `n/m` page footer resolves from the `.aux`, so a single run after a length change prints the previous run's total. A one-page CV footed `1/2` is a stale `.aux`, not an overflow.
+
+### 5f. Export the deliverable
+
+`main_<company>_<role>` is the **working** name. It keeps the repo sortable and lets several applications coexist; it is not what an employer should receive. A recruiter's downloads folder is full of files called `main_*.pdf`.
+
+At export time only, copy the compiled PDFs to human-readable names built from the candidate's name in `01-candidate-profile.md`:
+
+```bash
+cd cv && cp main_<company>_<role>.pdf "Vorname-Nachname-Lebenslauf.pdf"
+cd cover_letters && cp cover_<company>_<role>.pdf "Vorname-Nachname-Anschreiben.pdf"
+```
+
+Substitute the real given name and surname; keep the hyphens and drop umlauts and spaces (`Jane-Doe-Lebenslauf.pdf`), since some upload forms reject both. Adjust the suffix to the CV's language when it is not German — `-CV.pdf` / `-Cover-Letter.pdf` for an English application.
+
+**Copy, do not rename.** The working file stays in place so a later `/apply` run against the same company still finds it, and so the export can be regenerated without recompiling.
+
+The exported files are what you hand the user in Step 6 and what gets attached to the application.
 
 ---
 
@@ -305,11 +334,19 @@ Summarize 3-5 key decisions made to tailor the application:
 - Any gaps that were acknowledged or reframed
 
 ### Files Created
-List the files written:
+List the files written, separating working files from what actually gets sent:
+
+Working files (stay in the repo):
 - `cv/main_<company>_<role><CV_EXT>`
 - `cover_letters/cover_<company>_<role><COVER_EXT>`
 
-Tell the user: "Both files are ready for your review. Open them to check the final output before compiling."
+Deliverables (attach these to the application):
+- `cv/Vorname-Nachname-Lebenslauf.pdf`
+- `cover_letters/Vorname-Nachname-Anschreiben.pdf`
+
+Tell the user: "Both files are ready for your review. Open them to check the final output before submitting."
+
+If `tools/verify_pdf.py` reported any `SKIP` in Step 5d, say so here and name the missing binary — a skipped check is not a passed check, and the user needs to know which parts of the report are unverified.
 
 ### Step 6b: Record the Application
 

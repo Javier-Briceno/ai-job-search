@@ -1,61 +1,226 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Cover Letter - [Company], [Role]
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Anschreiben nach DIN 5008 Form B - [Unternehmen], [Position]
 %
-% Example cover letter with placeholder content. This is the structural
-% reference for /apply (see 06-cover-letter-templates.md) and the CI smoke
-% test for cover.cls: it must always compile with xelatex to exactly 1 page.
-% It demonstrates the correct itemize pattern: the list sits OUTSIDE
-% \lettercontent{} (whose trailing \\ errors on \end{itemize}) and is
-% wrapped in Raleway-Medium so the bullet font matches the body.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Strukturvorlage fuer /apply (siehe 06-cover-letter-templates.md) und
+% CI-Smoke-Test: muss immer mit xelatex auf genau 1 Seite kompilieren.
+%
+% WARUM scrlttr2:
+% DIN 5008 legt die Zonen des Seitenkopfes in Millimetern ab Papieroberkante
+% fest. scrlttr2 kennt diese Zonen als Pseudolaengen und setzt sie selbst;
+% man stellt Variablen ein, statt Boxen von Hand zu positionieren. Damit kann
+% die Geometrie beim Bearbeiten des Textes nicht verrutschen - genau der
+% Fehler, den eine handgebaute Klasse unweigerlich produziert.
+%
+% ZONEN (Form B, Masse ab Papieroberkante):
+%   0 mm      Briefkopf         Name und Kontaktdaten
+%   45 mm     Vermerkzone       17,7 mm hoch, von unten befuellt
+%   62,7 mm   Anschriftzone     27,3 mm hoch, maximal 6 Zeilen
+%   ~97 mm    Betreff und Text
+%
+% Raender: oben 4,5 cm, links 2,5 cm, rechts 2,0 cm, unten 2,0 cm.
+% Die 2,5 cm links sind kein Geschmack, sondern Lochrand: der Brief muss
+% abgeheftet werden koennen, ohne Text zu verdecken.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\documentclass[]{cover}
-\usepackage{fancyhdr}
+\documentclass[
+  fontsize=11pt,
+  paper=a4,
+  parskip=full,          % Leerzeile zwischen Absaetzen, kein Einzug (DIN 5008)
+  fromalign=right,       % Briefkopf rechtsbuendig; fromalign=left ist ebenso
+                         % DIN-konform - nur konsistent mit dem CV halten
+  fromphone=true,
+  fromemail=true,
+  fromurl=true,
+  foldmarks=false,       % Falzmarken aus: die Bewerbung geht als PDF raus.
+                         % Fuer den Postweg auf true setzen.
+  subject=untitled,      % kein vorangestelltes "Betreff:"
+  subject=beforeopening, % Betreff vor der Anrede
+  enlargefirstpage=true,
+  pagenumber=false,
+]{scrlttr2}
 
-\pagestyle{fancy}
-\fancyhf{}
+% Form B. scrlttr2 laedt DIN.lco ohnehin als Standard; der explizite Aufruf
+% dokumentiert die Absicht und ueberlebt eine Aenderung der Klassenvorgabe.
+\LoadLetterOption{DIN}
 
-\rfoot{Page \thepage \hspace{0pt}}
-\thispagestyle{empty}
-\renewcommand{\headrulewidth}{0pt}
+% ----------------------------------------------------------------------
+%     SPRACHE / LANGUAGE
+% ----------------------------------------------------------------------
+% Die Sprache richtet sich nach der AUSSCHREIBUNG, nicht nach dem Sitz des
+% Unternehmens: eine englische Stellenanzeige wird auf Englisch beantwortet,
+% auch bei einem deutschen Arbeitgeber.
+%
+% Der DIN-5008-Satzspiegel bleibt in beiden Faellen richtig, solange der
+% Arbeitgeber in Deutschland sitzt - es ist ein Briefformat, keine Sprache.
+% Bei einem Arbeitgeber ausserhalb des deutschsprachigen Raums zusaetzlich
+% die Rueckendeangabe (backaddress) weglassen, die dort unueblich ist.
+%
+% DEUTSCH (Standard):
+\usepackage[ngerman]{babel}
+\renewcaptionname{ngerman}{\enclname}{\textbf{Anlagen}}
+%
+% ENGLISCH - die zwei Zeilen oben auskommentieren, diese zwei aktivieren:
+% \usepackage[english]{babel}
+% \renewcaptionname{english}{\enclname}{\textbf{Enclosures}}
+%
+% Ebenfalls anzupassen, weil sie im Text stehen: Anrede ("Dear Ms [Name],"),
+% Grussformel ("Kind regards,"), Datumsformat und der Betreff
+% ("Application for ...").
+
+\usepackage{graphicx}
+
+% Schrift: DIN 5008 nennt Arial 11 pt oder Times 12 pt. TeX Gyre Heros ist ein
+% Helvetica-Klon, metrisch mit Arial kompatibel, und liegt jeder TeX-Distribution
+% bei - Arial dagegen existiert auf Linux-Buildmaschinen nicht, weshalb die CI
+% daran scheitern wuerde. Fuer echtes Arial die naechste Zeile ersetzen durch:
+%   \setmainfont{Arial}
+\usepackage{fontspec}
+\setmainfont{texgyreheros}[
+  Extension    = .otf,
+  UprightFont  = *-regular,
+  BoldFont     = *-bold,
+  ItalicFont   = *-italic,
+  BoldItalicFont = *-bolditalic,
+]
+
+% Satzspiegel. Die DIN-Zonen oben werden von scrlttr2 ueber Pseudolaengen
+% gesetzt und sind von geometry unabhaengig; geometry legt nur den Textblock
+% fest (Breite = 210 - 25 - 20 = 165 mm).
+\usepackage[left=25mm, right=20mm, top=45mm, bottom=20mm]{geometry}
+
+% ----------------------------------------------------------------------
+%     DIN 5008 Form B - Zonenmasse
+% ----------------------------------------------------------------------
+% Diese Werte entsprechen den Vorgaben von DIN.lco. Sie stehen hier
+% ausdruecklich, damit die Masse im Dokument sichtbar sind und eine
+% Aenderung der lco-Datei die Form nicht still verschiebt.
+
+\setplength{toaddrvpos}{45mm}        % Oberkante Vermerkzone
+\setplength{toaddrheight}{45mm}      % 17,7 mm Vermerk + 27,3 mm Anschrift
+\setplength{toaddrhpos}{25mm}        % buendig mit dem linken Rand
+\setplength{backaddrheight}{17.7mm}  % Vermerkzone, von unten befuellt
+\setplength{refvpos}{97mm}           % Betreff-/Textzone
+                                     % (DIN.lco liefert 98,5 mm; beide
+                                     %  Werte liegen in der Norm)
+
+% Betreff: fett, ohne Unterstreichung, ohne Schlusspunkt. Je zwei Leerzeilen
+% davor (nach dem Datum) und danach (vor der Anrede).
+%
+% Die Werte sind 1\baselineskip, nicht 2: parskip=full setzt bereits eine
+% volle Leerzeile zwischen die Bloecke, und beides addiert sich. Mit 2
+% standen rund vier Leerzeilen auf der Seite statt der geforderten zwei.
+\setkomafont{subject}{\bfseries}
+\setplength{subjectbeforevskip}{1\baselineskip}
+\setplength{subjectaftervskip}{1\baselineskip}
+
+% "Anlagen" fett und ohne Doppelpunkt.
+%
+% Die Beschriftung kommt aus \enclname, NICHT aus der Beschreibung der
+% KOMA-Variable: \setkomavar*{encl}{...} bleibt wirkungslos (die Vorlage gibt
+% dann weiter "Anlage(n)" aus), waehrend der Separator sehr wohl greift.
+% \renewcaptionname ist der vorgesehene Weg, einen sprachabhaengigen Namen zu
+% ersetzen, und wirkt auch gegen babel.
+%
+% Falls hier weiterhin "Anlage(n)" steht: \encl unten loeschen und die Zeile
+% von Hand setzen, das ist deterministisch:
+%   \vspace{\baselineskip}
+%   \noindent\textbf{Anlagen}\\{}[Lebenslauf, Zeugnisse]
+% \renewcaptionname steht oben im Sprachblock, damit ein Sprachwechsel nur
+% eine Stelle betrifft. Hier bleibt nur der Separator.
+\setkomavar{enclseparator}{}
+
+% ----------------------------------------------------------------------
+%     BRIEFKOPF
+% ----------------------------------------------------------------------
+% Telefonnummer bewusst in Ziffernform: die Pruefung "phone in text" in
+% tools/verify_pdf.py sucht eine Ziffernfolge. Profil-URL ausgeschrieben,
+% nicht als \href-Ankertext - Ankertext landet in einer PDF-Annotation,
+% die die meisten Parser nicht lesen.
+
+\setkomavar{fromname}{[Vorname Nachname]}
+% ACHTUNG \\{} : Ein "[" direkt nach \\ wird von LaTeX als optionales
+% Abstandsargument gelesen (\\[2mm]). Der Platzhalter verschwindet dann oder
+% die eckigen Klammern werden verschluckt. Das leere {} beendet das
+% Argumentscannen. Gleiche Falle wie \item [Text] im Lebenslauf.
+\setkomavar{fromaddress}{[Strasse Hausnummer]\\{}[PLZ Ort]}
+\setkomavar{fromphone}{[+49 151 0000000]}
+\setkomavar{fromemail}{[vorname.nachname@example.com]}
+\setkomavar{fromurl}{linkedin.com/in/[dein-profil]}
+
+% Rueckendeangabe in der Vermerkzone (eine Zeile, klein).
+\setkomavar{backaddress}{[Vorname Nachname], [Strasse Hausnummer], [PLZ Ort]}
+
+% Ort und Datum, rechtsbuendig. Ausgeschriebener Monat wirkt formeller als
+% die Ziffernform 12.08.2026, die ebenfalls zulaessig ist.
+\setkomavar{place}{[Ort]}
+\setkomavar{date}{[TT. Monat JJJJ]}
+
+% Betreff: exakte Stellenbezeichnung aus der Ausschreibung, dazu die
+% Referenznummer, falls vorhanden. Kein Punkt am Ende.
+% Referenznummer nur anfuegen, wenn die Ausschreibung eine nennt.
+\setkomavar{subject}{Bewerbung als [exakte Stellenbezeichnung], Referenznummer [XXXX]}
+
+% Unterschrift: eingescannte Unterschrift, darunter der getippte Name.
+% Die Bilddatei wird NICHT eingecheckt - *.png und *.jpg sind in .gitignore
+% gesperrt, und eine Unterschrift gehoert nicht in ein oeffentliches Repo.
+% Datei lokal ablegen und die naechste Zeile einkommentieren:
+% \setkomavar{signature}{\includegraphics[height=15mm]{unterschrift.png}\\[2mm][Vorname Nachname]}
+\setkomavar{signature}{[Vorname Nachname]}
+
 \begin{document}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%     TITLE NAME
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\namesection{}{\Huge{[YOUR NAME]}}{  \href{mailto:your.email@example.com}{your.email@example.com} | [+XX XXXXXXXXXX] |  \urlstyle{same}\href{https://www.linkedin.com/in/yourprofile}{LinkedIn}
-}
+% ----------------------------------------------------------------------
+%     ANSCHRIFT
+% ----------------------------------------------------------------------
+% Reihenfolge: Unternehmen, Ansprechpartner, Strasse, PLZ und Ort.
+% Kein "An", kein "Firma". Akademische Grade stehen HINTER dem Namen:
+% "Vorname Nachname B. Sc.", nicht davor. Hoechstens 6 Zeilen.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%     MAIN COVER LETTER CONTENT
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Jedes \\ hier mit {} abgesichert - siehe Hinweis beim Briefkopf.
+\begin{letter}{[Unternehmen]\\{}
+[Vorname Nachname B.\,Sc.]\\{}
+[Strasse Hausnummer]\\{}
+[PLZ Ort]}
 
-\currentdate{\today}
-\lettercontent{Dear [Hiring Manager / Team],}
+% Flattersatz, kein Blocksatz. Gleiche Regel wie im Lebenslauf und aus dem
+% gleichen Grund: Blocksatz zwingt LaTeX zu Trennungen, die deutsche
+% Komposita ueber den Zeilenumbruch zerreissen.
+\raggedright
 
-\lettercontent{[Opening paragraph: name the role and where you found it, state your strongest connection to it in one sentence, and preview why you are a fit. Keep it to 2--3 sentences.]}
+\opening{Sehr geehrte Frau [Nachname],}
 
-\lettercontent{[Body paragraph: your most relevant experience, framed toward the tasks in the posting. Follow with 3--5 concrete bullets:]}
+% --- Absatz 1: der Einstieg ---------------------------------------------
+% Warum genau dieses Unternehmen. Niemals "hiermit bewerbe ich mich", und
+% keine Wiederholung der Stellenbezeichnung - die steht schon im Betreff.
+% Dieser Absatz wird am haertesten ueberflogen, er muss also eine Tatsache
+% enthalten, die auf keinen anderen Arbeitgeber zutraefe.
+[Konkreter Bezug: was das Unternehmen baut oder fuer wen. Eine ueberpruefbare
+Einzelheit - ein Produkt, ein Markt, eine erklaerte Prioritaet.]
 
-{\raggedright\fontspec[Path = OpenFonts/fonts/raleway/]{Raleway-Medium}\fontsize{11pt}{13pt}\selectfont
-\begin{itemize}
-    \item \textbf{[Achievement 1]:} [concrete result with a number where possible]
-    \item \textbf{[Achievement 2]:} [skill or project mapped to a posting requirement]
-    \item \textbf{[Achievement 3]:} [evidence for a nice-to-have requirement]
-\end{itemize}\par}
-\vspace{6pt}
+% --- Absatz 2: die Belege -----------------------------------------------
+% Zwei oder drei Aussagen, jede an etwas geknuepft, das tatsaechlich getan
+% wurde. Keine Aufzaehlung von Faehigkeiten. Muster: "In X habe ich Y
+% gebaut, was Z bewirkt hat."
+[Beleg 1: Projekt, was gebaut wurde, welche Wirkung. Beleg 2 analog.
+Beleg 3 nur, wenn er einen anderen Punkt macht als 1 und 2.]
 
-\lettercontent{[Connection paragraph: why this company specifically. Reference a verified specific: a product, a stated priority, a team. Never generic.]}
+% --- Absatz 3: die Passung ----------------------------------------------
+% Wie das Getane auf den Bedarf trifft. Fehlt eine geforderte Qualifikation
+% wirklich, dann hier in EINEM Satz benennen und weitergehen. Nicht
+% entschuldigen, keinen Absatz darauf verwenden.
+[Zuordnung der Belege zu den Anforderungen der Ausschreibung. Bei einer
+echten Luecke: ein Satz, sachlich, ohne Entschuldigung.]
 
-\lettercontent{[Personal fit paragraph: behavioral strengths and what you bring to the team, 2--3 sentences.]}
+% --- Absatz 4: der Abschluss --------------------------------------------
+% Verfuegbarkeit, Eintrittstermin, Wochenstunden. Gehaltsvorstellung NUR,
+% wenn die Ausschreibung danach fragt. Kein Konjunktiv: "wuerde mich
+% freuen" ist schwach, "Ueber ein Gespraech freue ich mich" ist direkt.
+[Verfuegbar ab [Monat JJJJ], [XX] Stunden pro Woche.] Ueber ein Gespraech
+freue ich mich.
 
-\lettercontent{I look forward to hearing from you.}
+\closing{Mit freundlichen Gr\"u\ss{}en}
 
-\begin{flushright}
-% Note: no trailing \\ inside \closing{} - cover.cls appends its own \\, and a
-% doubled break triggers "There's no line here to end."
-\closing{Kind regards,}
+\encl{[Lebenslauf, Zeugnisse]}
 
-\signature{[YOUR NAME]}
-\end{flushright}
+\end{letter}
 \end{document}

@@ -1,5 +1,5 @@
 ---
-framework_version: 1.4.0
+framework_version: 2.0.0
 ---
 
 # CV Templates and Tailoring Guide
@@ -20,55 +20,73 @@ All CVs use the moderncv LaTeX package with the "banking" style and "blue" color
 cd cv && lualatex -interaction=nonstopmode main_<company>_<role>.tex
 ```
 
-Expected output: `Output written on main_<company>_<role>.pdf (2 pages, ...)`. Any page count other than 2 is a failure that must be fixed before presenting to the user.
+Run it **twice**: the `n/m` page footer resolves from the `.aux` file, so a single run after a length change reports the previous run's total.
+
+Expected output: `Output written on main_<company>_<role>.pdf (1 page, ...)`. Any page count other than 1 is a failure that must be fixed before presenting to the user.
 
 ## Document Structure
 
-```latex
-\documentclass[11pt,a4paper,sans]{moderncv}
-\moderncvstyle{banking}
-\moderncvcolor{blue}
+`cv/main_example.tex` is the authoritative skeleton - read it before drafting rather than reconstructing a preamble from memory. Section order:
 
-% Force both first and last name AND section headings to render in moderncv
-% blue (color1). Default banking on lualatex+MiKTeX leaves these black, which
-% looks inconsistent with the rest of the blue accent scheme.
-\renewcommand*{\firstnamestyle}[1]{{\fontsize{34}{36}\bfseries\upshape\color{color1}#1}}
-\renewcommand*{\lastnamestyle}[1]{{\fontsize{34}{36}\bfseries\upshape\color{color1}#1}}
-\renewcommand*{\sectionstyle}[1]{{\sectionfont\color{color1}#1}}
-
-\usepackage[utf8]{inputenc}
-\usepackage{hyperref}
-\hypersetup{
-    colorlinks=true,
-    linkcolor=blue,
-    filecolor=magenta,
-    urlcolor=blue,
-    pdftitle={[YOUR_NAME] - CV},
-    pdfpagemode=FullScreen,
-}
-\usepackage[scale=0.77]{geometry}
-\usepackage{import}
-
-% Personal data
-\name{[FIRST_NAME]}{[LAST_NAME]}
-\address{[YOUR_ADDRESS]}{}{}
-\phone[mobile]{[YOUR_PHONE]}
-\email{[YOUR_EMAIL]}
-\extrainfo{\href{[YOUR_LINKEDIN_URL]}{LinkedIn}, \href{[YOUR_GITHUB_URL]}{GitHub}}
-
-\begin{document}
-\makecvtitle
-
-% 1. Profile statement (1-3 sentences, tailored per role)
-% 2. Skills section
-% 3. Education section
-% 4. Professional Experience section
-% 5. Selected Publications (if applicable)
-% 6. Honors and Awards (if applicable)
-% 7. References
-
-\end{document}
 ```
+Kurzprofil -> Kernkompetenzen -> Berufserfahrung -> Projekte -> Ausbildung -> Sprachen
+```
+
+The preamble carries five groups of overrides. **None of them are cosmetic; do not drop any when tailoring.**
+
+| Override | Why it is there |
+|---|---|
+| `\firstnamestyle` / `\lastnamestyle` / `\sectionstyle` | Banking on lualatex+MiKTeX renders names and headings black despite `\moderncvcolor{blue}` |
+| `\mobilephonesymbol` etc. blanked | FontAwesome icons have no Unicode mapping and extract as `MOBILE-ANDROID-ALT` or `U+FFFD` |
+| `\labelitemi` -> `-` | moderncv's circle marker extracts as a stray symbol on every bullet line |
+| `\makeheaddetailssymbol` -> `\textbar` | The default `\rmfamily\textbullet` reaches the text layer as a bare `0xB7` byte - invalid UTF-8 |
+| `\cventry` -> single-column | See below |
+| `\raggedright` + `\hyphenpenalty=10000` | Justified text hyphenates German compounds across line breaks, so a screening parser never matches the keyword |
+
+### The single-column `\cventry` override (do not revert)
+
+moderncv's banking `\cventry` sets location and date in a right-aligned second column. It looks good and it extracts wrong: in **raw** `pdftotext` mode those fields emerge as one floating block *after* every entry in the section, so a parser attributes dates to the wrong employer or to none.
+
+Measured on the stock template, three roles:
+
+```
+[Company] [Job Title] - [Achievement 1] - [Achievement 2] ...
+[Company] [Job Title] - [Achievement 1] ...
+[Company] [Job Title] - [Achievement 1] ...
+
+[City, Country] [YYYY-Present]      <- detached from its employer
+[City, Country] [YYYY-YYYY]
+[City, Country] [YYYY-YYYY]
+```
+
+With the override, each entry extracts sequentially and complete:
+
+```
+[Unternehmen], [Position]
+[MM/JJJJ-heute] | [Ort]
+- [Aufgabe oder Erfolg 1]
+```
+
+Argument order is unchanged from moderncv - `{date}{title}{organization}{location}{grade}{description}` - so **argument 3 is the bold line**. A project entry therefore passes the project name as argument 3 and the stack as argument 2, not the reverse.
+
+Arguments 4 and 5 are optional and the override tests for emptiness, so `{}` is safe for a project with no location.
+
+### Placeholder bracing (silent text loss)
+
+Always write `\item {[Text]}`, never `\item [Text]`. Unbraced, LaTeX parses the square brackets as `\item`'s **optional label argument**: the text becomes the bullet's label, renders into the left margin, and is clipped off the page edge. It is not subtle once compiled - it is simply easy to introduce and easy to leave uncompiled.
+
+```latex
+\item {[Achievement or responsibility 1]}   % correct
+\item [Achievement or responsibility 1]     % text lost off the page edge
+```
+
+### Localisation via the heading macro block
+
+Section names live in one block of `\newcommand`s (`\headingCompetencies`, `\headingExperience`, `\headingProjects`, `\headingEducation`, `\headingLanguages`, `\headingAwards`). Localise the CV by editing that block only. Never rewrite individual `\section{...}` lines - that is how headings drift out of sync between profile variants.
+
+### Date format
+
+German convention, `MM/JJJJ`, with an **ASCII hyphen** joining the range: `[MM/JJJJ-MM/JJJJ]`. Never `--` - it ligatures into an en-dash (U+2013) that many parsers fail to read as a range, and under lualatex it also lands in the text layer as an invalid byte. See "Date fields must be ASCII ranges" below.
 
 ### Color overrides
 
@@ -192,56 +210,58 @@ Wherever the CV names a verifiable artifact - a public project, a hackathon entr
 ### Honors and Awards
 - Keep format brief, one line each
 
-### References
-- List 2-4 references with name, title, company, and contact
-- End with: "More references are available upon request."
-- **Do not attach reference letters** - employers typically contact references directly
+### References - deliberately absent
+
+The template has **no References section and no "Available upon request." line**. That is an Anglo-American convention with no functional equivalent in the German market, where Arbeitszeugnisse are attached as Anlagen instead. The line spends a heading and a row of the page budget carrying zero information.
+
+Do not reintroduce it. If a posting explicitly asks for referees, supply them in the application form or as a separate Anlage, not as a CV section.
 
 ## Compile-and-Inspect Loop (MANDATORY)
 
 After writing the CV and before presenting to the user, always compile and visually inspect the PDF. Iterate until the layout is clean. Workflow:
 
-1. Run `lualatex -interaction=nonstopmode main_<company>_<role>.tex`
-2. Check the output page count: must be exactly 2
-3. Read the PDF via the Read tool and visually inspect both pages
-4. Check for **orphaned entries**: a `\cventry` title line must never sit alone at the bottom of page 1 with its bullets on page 2
+1. Run `lualatex -interaction=nonstopmode main_<company>_<role>.tex` **twice** - the `n/m` footer resolves from the `.aux`, so one run after a length change prints the previous total (a 1-page CV footed `1/2` is a stale `.aux`, not an overflow)
+2. Check the output page count: must be exactly 1
+3. Read the PDF via the Read tool and inspect it visually
+4. Check for **orphaned entries**: a `\cventry` title line must never sit alone at the foot of the page with its bullets pushed over
 
 ### Fixing common page-break problems
 
-**Problem: entry title on page 1, bullets orphaned to page 2**
-Add `\needspace{5\baselineskip}` immediately before the problematic `\cventry`:
-```latex
-\needspace{5\baselineskip}
-\item{\cventry{YEAR--YEAR}{Role Title}{Organization}{Location}{}{...}}
-```
-Include `\usepackage{needspace}` in the preamble.
+**Problem: entry title stranded at the foot of the page**
+The overridden `\cventry` already issues `\needspace{4\baselineskip}` on every entry, so this should not occur. If it does, raise that value inside the override rather than sprinkling `\needspace` at call sites - one definition, every entry.
 
-**Caveat - use `\needspace` before entries, never before `\section` headings.** A section-level `\needspace` pushes the entire section (heading plus content) to the next page whenever the request does not fit, stranding empty space above and typically *adding* a page instead of saving one. Apply it only to the individual `\cventry` that actually orphans, and only after a compile shows the orphan.
+**Caveat - `\needspace` belongs before entries, never before `\section` headings.** A section-level `\needspace` pushes the entire section to the next page whenever the request does not fit, stranding empty space above and *adding* a page instead of saving one.
 
-**Problem: one trailing section spills to page 3 (e.g., References alone on page 3)**
-Add `\enlargethispage{2-3\baselineskip}` before a late section (e.g., before `\section{Honors and Awards}`) to stretch page 2 by a few lines. This is the standard LaTeX rescue for near-miss overflows.
+**Problem: a trailing section spills to page 2**
+Add `\enlargethispage{2-3\baselineskip}` before a late section to stretch the page by a few lines. This is the standard LaTeX rescue for near-miss overflows.
 
-**Problem: 3 pages with significant content on page 3**
-Cut content — do not compress geometry or `\vspace`. See "Relevance-weighted cutting" below for the rule.
+**Problem: page 2 has significant content**
+Cut content — do not compress geometry or `\vspace`. The optional sections are the first candidates: Auszeichnungen and Publikationen ship commented out and should stay that way unless the posting calls for them. See "Relevance-weighted cutting" below.
 
-**Problem: content finishes early on page 2 (feels thin)**
-Restore the highest-relevance item that was previously cut — a CV that ends mid-page 2 looks incomplete.
+**Problem: the page finishes early (feels thin)**
+Restore the highest-relevance item that was previously cut, or uncomment Auszeichnungen.
 
 ## ATS Parseability
 
 Most employers run CVs through an ATS before a human sees them, and the ATS reads the PDF's embedded **text layer**, not the rendered page. A CV can pass visual inspection and still extract as garbage. After the layout passes the compile-and-inspect loop, verify the text layer:
 
+Extract in **both** modes - they fail differently, and `-layout` hides the fault the override exists to fix:
+
 ```bash
 cd cv && pdftotext -layout main_<company>_<role>.pdf main_<company>_<role>.txt
+cd cv && pdftotext main_<company>_<role>.pdf -            # raw order
 ```
 
-`pdftotext` comes from [poppler](https://poppler.freedesktop.org/), not the TeX distribution - it is an **optional** dependency. If it is not installed, skip the mechanical check with a warning and rely on the visual PDF read for keyword coverage.
+`pdftotext` comes from [poppler](https://poppler.freedesktop.org/), not the TeX distribution - it is an **optional** dependency, and it does **not** ship with MiKTeX or TeX Live. If it is not installed, skip the mechanical check with a warning and rely on the visual PDF read for keyword coverage.
 
 What to check in the extraction:
 
-- **Contact details as literal text.** The stock template's fontawesome contact icons extract as glyph names (`MOBILE-ALT`, `Envelope`) - harmless noise, because the actual address and number are printed beside them. The failure mode is a contact detail carried *only* by an icon or a hyperlink (like the `LinkedIn` link text, whose URL is not in the text layer): invisible to an ATS. The email address must always appear as printed text.
-- **No garbled output.** `(cid:NNN)` markers or `�` characters mean a font is embedded without a Unicode mapping - an ATS sees the same garbage. This shows up with unusual fonts in custom templates, not with the stock moderncv setup under lualatex.
-- **Reading order.** The stock banking style is single-column, so extraction order matches visual order. Custom templates (via `/add-template`) with sidebars or multi-column layouts can interleave unrelated lines; if extraction order is scrambled, the user is trading ATS compatibility for looks and should be told.
+- **No disallowed characters.** The rule is an allowlist, **not** ASCII - a correct German CV contains `Universität`, `für`, `Straße`, the `„…“` quotes the template emits via `\glqq`/`\grqq`, and `€` in any budget figure. Flag any character above U+024F, permitting U+00C0-U+00FF (umlauts, accents, ß), U+2010-U+2027 (hyphens, dashes, German quotes) and U+20AC (€). That still catches every defect this was written for: the U+FFFD fallback from moderncv's `0xB7` separator, the circle list marker, and FontAwesome glyph fallbacks. Do not tighten it back to ASCII - `tests/test_verify_pdf.py::CharacterPolicyTests` exists to stop exactly that.
+
+  **Do not eyeball this in a Windows console.** PowerShell renders UTF-8 through a legacy OEM codepage, so correct output looks broken: `„` shows as `ÔÇ×` and `“` as `ÔÇ£`. Both are fine. Trust `tools/verify_pdf.py`, which decodes explicitly as UTF-8.
+- **Contact details as literal text.** The contact icons are blanked in the preamble precisely so they cannot leak glyph names. Email, phone and both profile URLs must appear as printed text; `\href{...}{LinkedIn}` stores the address in a PDF annotation that most parsers never read.
+- **No garbled output.** `(cid:NNN)` markers or `�` characters mean a font is embedded without a Unicode mapping - an ATS sees the same garbage.
+- **Reading order, checked in raw mode.** Dates and locations must sit with their own entry. If they appear as a block after all entries, moderncv's two-column `\cventry` has been restored - re-apply the single-column override.
 - **Keyword coverage.** Match the posting's required/preferred terms against the extracted text, in the posting's language. Prefer the posting's exact term over a synonym when it is truthfully applicable - ATS matching is often literal. Never add a keyword the profile does not support.
 
 ### Date fields must be ASCII ranges (confirmed ATS import failure)
@@ -269,21 +289,22 @@ Two independent causes, both easy to avoid:
 
 **Add this to the step 5d checks**: after extracting the text layer, confirm every experience entry shows a start *and* an end separated by an ASCII hyphen. Because the failure is silent and invisible in the PDF, the candidate otherwise discovers it only while filling in the application form.
 
-## Page Budget - Hard 2-Page Limit
+## Page Budget - Hard 1-Page Limit
 
-The CV **must** fit on exactly 2 pages when compiled. Use these content limits as a guide:
+The CV **must** fit on exactly 1 page when compiled. Use these content limits as a guide:
 
 | Section | Max budget |
 |---------|-----------|
-| Profile statement | 3-4 lines |
-| Skills | 5 items, each 1-2 lines |
-| Most recent role | 4-5 bullets |
-| Previous role | 2-3 bullets |
-| Older roles | 2 bullets (1 line each) |
-| Education | 2-3 entries |
-| Publications | 2-3 entries |
-| Awards | 3 entries, single line each |
-| References | "Available upon request." (single line) |
+| Kurzprofil | 3 lines |
+| Kernkompetenzen | 4 items, 1 line each |
+| Most recent role | 3 bullets |
+| Previous role | 2 bullets |
+| Projekte | 1 entry, 2 bullets |
+| Ausbildung | 2 entries |
+| Sprachen | 1 line |
+| Auszeichnungen | commented out by default - restore only by cutting elsewhere |
+| Publikationen | commented out - academic track only |
+| References | **no section** - see below |
 
 **If in doubt, cut rather than squeeze.** Reducing `\vspace` or geometry scale to force-fit content makes the CV look cramped.
 
@@ -316,21 +337,14 @@ Cut the lowest-total-score line first, regardless of which section it sits in.
 
 ## Recommended Section Order
 
-The section order varies by role type:
+**Default (technical / Werkstudent roles):**
+1. Kurzprofil
+2. Kernkompetenzen
+3. Berufserfahrung (reverse chronological)
+4. Projekte
+5. Ausbildung (reverse chronological)
+6. Sprachen
 
-**For technical / data science / ML roles:**
-1. Profile statement / elevator pitch
-2. Core competencies / Skills
-3. Professional Experience (reverse chronological)
-4. Education (reverse chronological)
-5. Languages
-6. Publications & Awards
-7. References
+**For roles where the credential is the main qualifier:** move Ausbildung above Berufserfahrung. For a student with little work history, move Projekte above Berufserfahrung - it is the load-bearing section.
 
-**For domain-specific / specialist roles:**
-1. Profile statement / elevator pitch
-2. Core competencies / Skills
-3. Education (reverse chronological) - credentials are a key qualifier
-4. Professional Experience (reverse chronological)
-5. Publications & Awards
-6. References
+There is no References section, and Publikationen ships commented out for the academic track only.

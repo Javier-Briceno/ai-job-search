@@ -117,6 +117,9 @@ jobs:
       - name: Compile CV example (lualatex)
         run: |
           cd cv
+          # Twice: the n/m page footer resolves from the .aux, so a single run
+          # after a length change prints the previous run's total.
+          lualatex -interaction=nonstopmode -halt-on-error main_example.tex
           lualatex -interaction=nonstopmode -halt-on-error main_example.tex
           test -f main_example.pdf
           if grep -q '^!' main_example.log; then
@@ -127,6 +130,8 @@ jobs:
       - name: Compile cover letter example (xelatex)
         run: |
           cd cover_letters
+          # Twice: a single run leaves rerunfilecheck/hyperref warnings.
+          xelatex -interaction=nonstopmode -halt-on-error cover_example.tex
           xelatex -interaction=nonstopmode -halt-on-error cover_example.tex
           test -f cover_example.pdf
           if grep -q '^!' cover_example.log; then
@@ -134,21 +139,37 @@ jobs:
             grep -A3 '^!' cover_example.log
             exit 1
           fi
+          # A missing bold/italic shape renders at the wrong weight while the
+          # compile still succeeds - invisible in the PDF and in the text layer.
+          if grep -q 'Font shape' cover_example.log; then
+            echo '::error::xelatex substituted a font shape in cover_example.tex'
+            grep -A2 'Font shape' cover_example.log
+            exit 1
+          fi
       - name: Verify extractable PDF text
+        # poppler is installed above, so a SKIP here means the install step
+        # silently failed - --strict turns that into a red build rather than
+        # a green one that verified nothing.
         run: |
-          python3 tools/verify_pdf.py cv/main_example.pdf --min-chars 100
-          python3 tools/verify_pdf.py cover_letters/cover_example.pdf --min-chars 100
+          python3 tools/verify_pdf.py cv/main_example.pdf --min-chars 100 --strict
+          python3 tools/verify_pdf.py cover_letters/cover_example.pdf --min-chars 100 --strict
       - name: Assert stock PDF structure (upstream template only)
         if: github.repository == 'MadsLorentzen/ai-job-search'
         run: |
           python3 tools/verify_pdf.py cv/main_example.pdf \
-            --pages 2 \
-            --contains '[your.email@example.com]' \
-            --contains 'Professional Experience'
+            --pages 1 \
+            --strict \
+            --contains '[vorname.nachname@example.com]' \
+            --contains 'Berufserfahrung'
           python3 tools/verify_pdf.py cover_letters/cover_example.pdf \
             --pages 1 \
-            --contains 'your.email@example.com' \
-            --contains 'Dear [Hiring Manager / Team]'
+            --strict \
+            --contains '[vorname.nachname@example.com]' \
+            --contains 'Sehr geehrte Frau' \
+            --contains 'Mit freundlichen' \
+            --contains 'Anlagen'
+          # 'Anlagen' also guards the \enclname override: without it KOMA
+          # prints babel's default 'Anlage(n)', which this assertion rejects.
 
   discover-clis:
     # The matrix is discovered, not hardcoded, so a portal CLI added in a fork
