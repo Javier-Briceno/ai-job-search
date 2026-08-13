@@ -78,6 +78,13 @@ REQUIRED_IGNORE_RULES = [
     # fetching service, and that skill reads an API token from the environment.
     ".env",
     ".env.*",
+    # settings.local.json is where personal Claude Code config belongs, and it
+    # is the pressure-release valve for the hooks allowlist above: a contributor
+    # whose local tooling installs a hook is told to move it here rather than
+    # widen ALLOWED_HOOKS. That advice is only safe if the file cannot be
+    # committed - otherwise the hook ships to every fork by the one route
+    # check_permissions() does not inspect.
+    ".claude/settings.local.json",
 ]
 
 # Negation (re-include) rules the template legitimately ships. .gitignore is
@@ -97,6 +104,12 @@ ALLOWED_IGNORE_NEGATIONS = {
 # Hook commands the template legitimately ships, as "<Event>:<command>" strings.
 # Empty by design - the template ships no hooks at all.
 #
+# Do not add personal tooling here. A hook pointing at a locally installed
+# binary (an absolute path under a home directory) is meaningless on every
+# other machine and would ship a broken or unexpected hook to every fork.
+# Those belong in .claude/settings.local.json, which is gitignored and which
+# check_permissions() deliberately does not read.
+#
 # A hook is strictly more dangerous than a permissions.allow entry. A permission
 # pre-approves something Claude may choose to do; a hook runs unconditionally when
 # its event fires, with no prompt and no model decision in between. Cloning a repo
@@ -104,7 +117,19 @@ ALLOWED_IGNORE_NEGATIONS = {
 # August 2026 wave, planting a SessionStart hook in .claude/settings.json that
 # executed on session start:
 # https://research.jfrog.com/post/shai-hulud-is-back-august/
-ALLOWED_HOOKS: set[str] = set()
+ALLOWED_HOOKS: set[str] = {
+    # graphify (https://github.com/, local install) builds a knowledge graph of
+    # the repo and injects a "query the graph before grepping" note before
+    # search and read tools. Reviewed and accepted deliberately.
+    #
+    # These are absolute paths under one user's home directory, so they are
+    # meaningless on any other machine. That is tolerable ONLY because this is
+    # a personal fork that is never contributed upstream and has no downstream
+    # forks. Do not carry these entries into a PR against the upstream
+    # template - there the correct answer is to keep ALLOWED_HOOKS empty.
+    "PreToolUse:C:/Users/jfbt0/.local/bin/graphify.EXE hook-guard search",
+    "PreToolUse:C:/Users/jfbt0/.local/bin/graphify.EXE hook-guard read",
+}
 
 FORBIDDEN_SCRIPTS = {"preinstall", "install", "postinstall", "prepare", "prepack"}
 
@@ -158,9 +183,15 @@ def check_permissions() -> None:
                             f".claude/settings.json: hook not in the reviewed allowlist: "
                             f"{command!r}. A hook runs automatically when its event fires - it "
                             "is never gated by the permissions prompt, so it executes on every "
-                            "fork without the user agreeing to anything. If this hook is "
-                            "intentional, add it to ALLOWED_HOOKS in tools/security_guards.py "
-                            "in the same PR so the addition is explicit and reviewable."
+                            "fork without the user agreeing to anything. On the upstream "
+                            "template the answer is to keep ALLOWED_HOOKS empty and run personal "
+                            "tooling from your user-level settings instead "
+                            "(~/.claude/settings.json), which this guard does not read. "
+                            "(.claude/settings.local.json is gitignored and also unread here, but "
+                            "has not been confirmed to activate hooks in every Claude Code "
+                            "build - verify with /hooks before relying on it.) On a personal "
+                            "fork, adding the entry to ALLOWED_HOOKS in tools/security_guards.py "
+                            "is legitimate, provided the reasoning is recorded beside it."
                         )
 
     permissions = data.get("permissions", {})

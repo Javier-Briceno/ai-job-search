@@ -51,6 +51,13 @@ Thumbs.db
 # Memory files (Claude Code user-specific)
 .claude/projects/
 
+# Personal Claude Code settings. settings.json is the shared, reviewed file and
+# is held to a permissions/hooks allowlist by tools/security_guards.py;
+# settings.local.json is where machine-specific config belongs (absolute paths
+# to locally installed tools, personal hooks). It must never be committed - a
+# hook committed here would run on every fork without the guard seeing it.
+.claude/settings.local.json
+
 # Skills lock (auto-generated)
 skills-lock.json
 

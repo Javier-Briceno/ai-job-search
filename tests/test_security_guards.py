@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -210,18 +211,46 @@ class HookGuardTests(GuardRepoFixture):
     def test_allowlisted_hook_passes(self):
         command = "SessionStart:echo reviewed"
         guard = self.root / "tools" / "security_guards.py"
-        guard.write_text(
-            guard.read_text(encoding="utf-8").replace(
-                "ALLOWED_HOOKS: set[str] = set()",
-                f"ALLOWED_HOOKS: set[str] = {{{command!r}}}",
-            ),
-            encoding="utf-8",
+        source = guard.read_text(encoding="utf-8")
+
+        # Replace whatever ALLOWED_HOOKS currently holds - an empty set() or a
+        # populated multi-line literal - with just this test's entry. Matching
+        # the exact production value here made the test silently vacuous the
+        # first time a real hook was allowlisted: the substitution became a
+        # no-op, the injected entry never landed, and the guard failed for a
+        # reason that had nothing to do with what is under test.
+        patched, substitutions = re.subn(
+            r"^ALLOWED_HOOKS: set\[str\] = (?:set\(\)|\{.*?^\})",
+            f"ALLOWED_HOOKS: set[str] = {{{command!r}}}",
+            source,
+            count=1,
+            flags=re.MULTILINE | re.DOTALL,
         )
+        self.assertEqual(
+            substitutions,
+            1,
+            "could not find the ALLOWED_HOOKS assignment in security_guards.py; "
+            "update this pattern rather than letting the test pass vacuously",
+        )
+
+        guard.write_text(patched, encoding="utf-8")
         self.write_settings_with_hooks(
             {"SessionStart": [{"hooks": [{"type": "command", "command": "echo reviewed"}]}]}
         )
         result = run_guards(self.root)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_real_allowlist_entries_are_accepted(self):
+        # The entries actually shipped in ALLOWED_HOOKS must pass the guard.
+        # Complements the synthetic case above, which patches the constant.
+        for entry in security_guards.ALLOWED_HOOKS:
+            event, _, command = entry.partition(":")
+            with self.subTest(entry=entry):
+                self.write_settings_with_hooks(
+                    {event: [{"hooks": [{"type": "command", "command": command}]}]}
+                )
+                result = run_guards(self.root)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 class GitignoreGuardTests(GuardRepoFixture):

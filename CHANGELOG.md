@@ -13,6 +13,129 @@ per-file diff commands.
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: `cv/main_example.tex` rebuilt for ATS extraction and the German market**
+  (`05-cv-templates.md` 1.4.0 -> 2.0.0). The stock template produced a PDF whose text
+  layer no ATS could read correctly, and two of the faults also damaged the rendered
+  page. Every fix below was verified by compiling and extracting, not by inspection.
+  - **Achievement text was being clipped off the page edge.** The template wrote
+    `\item [Achievement or responsibility 1 - ...]`, and LaTeX parses `[...]` as
+    `\item`'s *optional label argument*. The placeholder became the bullet's label,
+    rendered into the left margin, and was cut off at the page boundary - extracting
+    as `ers where possible`. All placeholders opening a list item are now braced.
+  - **Contact icons leaked glyph names.** The FontAwesome symbols have no Unicode
+    mapping, so `pdftotext` emitted `MOBILE-ANDROID-ALT` and `U+FFFD` beside the real
+    values. `\mobilephonesymbol` and friends are now blanked.
+  - **The contact-line separator emitted an invalid byte.** moderncv's
+    `\makeheaddetailssymbol` is a `\rmfamily\textbullet` that reaches the text layer
+    as a bare `0xB7` - not valid UTF-8. Replaced with an ASCII bar.
+  - **The list marker extracted as a stray symbol** on every bullet line;
+    `\labelitemi` is now `-`.
+  - **Profile URLs were invisible to parsers.** `\href{...}{LinkedIn}` stores the
+    address in a PDF annotation that most parsers never read. The URLs now print as
+    visible text.
+  - **`\cventry` is overridden to a single column.** Banking's right-aligned
+    location/date column extracts, in raw `pdftotext` mode, as one floating block
+    *after* every entry in the section - so a parser attributes dates to the wrong
+    employer or to none. Single-column entries extract sequentially and complete.
+    Argument order is unchanged, so argument 3 remains the bold line.
+  - **Justified text was splitting German compounds** across line breaks, making the
+    screening keyword unfindable. Now `\raggedright` with a prohibitive hyphenation
+    penalty, which also protects real hyphens in terms like `Soll-Ist-Vergleich`.
+  - **Section names moved into a macro block** so localisation is one edit rather
+    than a per-`\section` rewrite that drifts between profile variants.
+  - **German market conventions:** `MM/JJJJ` dates, `babel ngerman` with German
+    quotation marks, a grade field and expected-completion slot in Ausbildung, a
+    `Projekte` section with a fixed entry shape, and a **1-page** budget (was 2).
+    The References section is **removed** - an Anglo-American convention with no
+    functional equivalent in Germany, where Arbeitszeugnisse are attached as Anlagen.
+    Publikationen and Auszeichnungen ship commented out.
+  - Preamble cleanup: dropped `inputenc` (a pdfLaTeX-era package, inert under
+    lualatex), the unused `import`, and `pdfpagemode=FullScreen`, which made the PDF
+    open fullscreen for a recruiter. Added `needspace`, `pdfauthor` and `pdfsubject`.
+
+  The resulting PDF is 1 page and its text layer contains no disallowed characters.
+  The character rule is an **allowlist, not ASCII** - flag above U+024F, permit
+  U+00C0-U+00FF and U+2010-U+2027 - because `Universität` and `für` are correct
+  output and an ASCII rule would reject them the moment real content replaced the
+  placeholders. `CLAUDE.md`'s verification checklist was updated to match, including
+  a raw-mode reading-order check and a reminder to compile twice (the `n/m` footer
+  resolves from a stale `.aux`).
+
+- **graphify's `PreToolUse` hooks reviewed and added to `ALLOWED_HOOKS`.** A local
+  `graphify` install had written two hooks into the committed
+  `.claude/settings.json`, which the hooks allowlist correctly rejected. They are
+  now allowlisted deliberately, with the reasoning recorded next to the entries:
+  the commands are absolute paths under one user's home directory and are therefore
+  meaningless elsewhere, which is acceptable **only** because this is a personal
+  fork with no upstream contribution path and no downstream forks. Upstream, the
+  correct value remains an empty set.
+
+  Moving them to `.claude/settings.local.json` was tried first and abandoned: that
+  file did not activate the hooks in this Claude Code build, and the probe used to
+  test it turned out not to work either, so the attempt produced no usable evidence.
+  `.claude/settings.json` is the only configuration positively observed to run them.
+
+  `.claude/settings.local.json` is nonetheless now in `.gitignore` **and** in
+  `REQUIRED_IGNORE_RULES`, independent of hooks: Claude Code writes that file itself
+  to record permission decisions, and it should never be committed.
+
+- **BREAKING: cover letters are now DIN 5008 Form B via KOMA-Script `scrlttr2`**
+  (`06-cover-letter-templates.md` 1.1.0 -> 2.0.0). The custom `cover.cls` layout was
+  an international-style letter with a bullet list; it does not implement the German
+  standard, and neither does moderncv's letter support. DIN 5008 fixes the page-head
+  zones in millimetres from the paper edge (Briefkopf 0 mm, Vermerkzone 45 mm and
+  17.7 mm tall filled bottom-up, Anschriftzone 62.7 mm and 27.3 mm tall for at most
+  six lines, Betreff and text from ca. 97 mm), and `scrlttr2` knows those zones as
+  pseudo-lengths. Setting variables rather than positioning boxes means the geometry
+  cannot drift when the content length changes.
+
+  Margins are the DIN values (top 4.5 cm, left 2.5 cm, right 2.0 cm, bottom 2.0 cm);
+  the 2.5 cm left margin is the punch margin, so a filed letter does not lose text to
+  the holes. Body is ragged right, never justified — the same rule as the CV, for the
+  same reason. Betreff is bold with no `Betreff:` prefix, no underline and no full
+  stop; `Anlagen` is bold with no colon; degrees follow the recipient's name; no
+  `An`/`Firma` prefix.
+
+  The font default is TeX Gyre Heros rather than the Arial that DIN names, because
+  Arial does not exist on the Linux CI image — Heros is a Helvetica clone and
+  metrically compatible. One commented line switches to real Arial locally.
+
+  `cover.cls` and the bundled Lato/Raleway fonts remain in the tree but are no longer
+  used by the stock template and no longer have CI coverage.
+
+- **Cover letter bullet labels were never bold** (`06-cover-letter-templates.md` 1.0.1
+  -> 1.1.0). `\fontspec{Raleway-Medium}` loads a single face and declares no bold
+  shape, so the documented `\item \textbf{Label:}` pattern rendered at medium weight
+  while the compile succeeded. The only evidence was one line in the `.log`
+  (`Font shape 'TU/Raleway-Medium(0)/b/n' undefined`) - invisible in the PDF, and
+  invisible to `verify_pdf.py`, since font weight is not part of the text layer. The
+  family already shipped `Raleway-Bold.otf`; it was simply never wired up. All
+  `\fontspec` calls now pass `BoldFont = Raleway-Bold`, and the compile guidance says
+  to grep the log for `Font shape` before trusting a PDF.
+
+- **`tools/verify_pdf.py` decodes poppler output as UTF-8 explicitly.** `subprocess.run`
+  was called with a bare `text=True`, which decodes using
+  `locale.getpreferredencoding()` - the ANSI codepage on Windows. cp1252 turns the
+  UTF-8 bytes of `„` (`E2 80 9E`) into `â€ž`, and the resulting stray U+20AC failed
+  the character check on **every German CV, on Windows only**, for a defect present
+  in neither the PDF nor the template. `errors="replace"` is kept deliberately:
+  genuinely invalid UTF-8, such as moderncv's bare `0xB7` separator, still becomes
+  U+FFFD and is still flagged. `€` and `§` are now allowed as legitimate content -
+  a Controlling CV quotes budgets in euros and cites German law by section sign.
+
+- **`tools/verify_pdf.py` now runs the full extraction check suite.** Previously page
+  count, minimum length and required strings. Now also glyph-name leaks, disallowed
+  symbols, hyphenation splits, fused terms, orphan list markers, profile-URL
+  visibility, email and phone - the defects that survive visual inspection.
+  Placeholder detection sits behind `--check-placeholders` because a template is
+  supposed to be full of placeholders. When poppler is absent the affected checks
+  report `SKIP` with the reason rather than crashing or silently passing; `--strict`
+  turns a SKIP into a failure for CI and is off by default. An unreadable PDF still
+  fails rather than skipping. The exception-raising `verify_pdf()` helper is
+  unchanged for existing callers.
+
 ### Added
 
 - **`security_guards.py` now holds `.claude/settings.json` hooks to an allowlist** - the
