@@ -157,7 +157,7 @@ jobs:
         if: github.repository == 'MadsLorentzen/ai-job-search'
         run: |
           python3 tools/verify_pdf.py cv/main_example.pdf \
-            --pages 1 \
+            --max-pages 2 \
             --strict \
             --contains '[vorname.nachname@example.com]' \
             --contains 'Berufserfahrung'

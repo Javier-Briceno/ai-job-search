@@ -80,7 +80,7 @@ Quick smoke tests after setup:
 ```bash
 (cd cv && lualatex -interaction=nonstopmode -halt-on-error main_example.tex && lualatex -interaction=nonstopmode -halt-on-error main_example.tex)
 (cd cover_letters && xelatex -interaction=nonstopmode -halt-on-error cover_example.tex && xelatex -interaction=nonstopmode -halt-on-error cover_example.tex)
-python3 tools/verify_pdf.py cv/main_example.pdf --pages 1 --min-chars 100 --strict
+python3 tools/verify_pdf.py cv/main_example.pdf --max-pages 2 --min-chars 100 --strict
 python3 tools/verify_pdf.py cover_letters/cover_example.pdf --pages 1 --min-chars 100 --strict
 ```
 
@@ -118,7 +118,7 @@ xelatex -interaction=nonstopmode -halt-on-error cover_example.tex
 xelatex -interaction=nonstopmode -halt-on-error cover_example.tex
 Pop-Location
 
-python tools/verify_pdf.py cv/main_example.pdf --pages 1 --min-chars 100 --strict
+python tools/verify_pdf.py cv/main_example.pdf --max-pages 2 --min-chars 100 --strict
 python tools/verify_pdf.py cover_letters/cover_example.pdf --pages 1 --min-chars 100 --strict
 ```
 

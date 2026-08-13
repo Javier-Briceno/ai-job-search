@@ -1,5 +1,5 @@
 ---
-framework_version: 2.0.0
+framework_version: 2.1.0
 ---
 
 # CV Templates and Tailoring Guide
@@ -22,7 +22,7 @@ cd cv && lualatex -interaction=nonstopmode main_<company>_<role>.tex
 
 Run it **twice**: the `n/m` page footer resolves from the `.aux` file, so a single run after a length change reports the previous run's total.
 
-Expected output: `Output written on main_<company>_<role>.pdf (1 page, ...)`. Any page count other than 1 is a failure that must be fixed before presenting to the user.
+Expected output: 1 or 2 pages. Prefer 1 page when it carries the relevant evidence cleanly; use a second page when reaching 1 would remove material, non-duplicative proof of fit. More than 2 pages is always a failure.
 
 ## Document Structure
 
@@ -221,7 +221,7 @@ Do not reintroduce it. If a posting explicitly asks for referees, supply them in
 After writing the CV and before presenting to the user, always compile and visually inspect the PDF. Iterate until the layout is clean. Workflow:
 
 1. Run `lualatex -interaction=nonstopmode main_<company>_<role>.tex` **twice** - the `n/m` footer resolves from the `.aux`, so one run after a length change prints the previous total (a 1-page CV footed `1/2` is a stale `.aux`, not an overflow)
-2. Check the output page count: must be exactly 1
+2. Check the output page count: prefer 1 page, allow 2 when the second page contains relevant evidence, and never exceed 2
 3. Read the PDF via the Read tool and inspect it visually
 4. Check for **orphaned entries**: a `\cventry` title line must never sit alone at the foot of the page with its bullets pushed over
 
@@ -232,14 +232,14 @@ The overridden `\cventry` already issues `\needspace{4\baselineskip}` on every e
 
 **Caveat - `\needspace` belongs before entries, never before `\section` headings.** A section-level `\needspace` pushes the entire section to the next page whenever the request does not fit, stranding empty space above and *adding* a page instead of saving one.
 
-**Problem: a trailing section spills to page 2**
-Add `\enlargethispage{2-3\baselineskip}` before a late section to stretch the page by a few lines. This is the standard LaTeX rescue for near-miss overflows.
+**Problem: only a few lines spill to page 2**
+Remove redundancy first. If the spill is still only a few lines, `\enlargethispage{2-3\baselineskip}` before a late section can rescue the near miss without shrinking margins or type. Do not use it to force substantial relevant content onto page 1.
 
-**Problem: page 2 has significant content**
-Cut content — do not compress geometry or `\vspace`. The optional sections are the first candidates: Auszeichnungen and Publikationen ship commented out and should stay that way unless the posting calls for them. See "Relevance-weighted cutting" below.
+**Problem: page 2 has substantial relevant content**
+Keep the second page and balance the break. A two-page CV is valid when page 2 carries material evidence rather than repetition or filler. Check that no heading or entry is orphaned and that page 2 is not mostly empty.
 
-**Problem: the page finishes early (feels thin)**
-Restore the highest-relevance item that was previously cut, or uncomment Auszeichnungen.
+**Problem: page 3 appears**
+Cut content using relevance-weighted cutting; never reduce margins, font size, or line spacing to hide a three-page content problem.
 
 ## ATS Parseability
 
@@ -289,9 +289,11 @@ Two independent causes, both easy to avoid:
 
 **Add this to the step 5d checks**: after extracting the text layer, confirm every experience entry shows a start *and* an end separated by an ASCII hyphen. Because the failure is silent and invisible in the PDF, the candidate otherwise discovers it only while filling in the application form.
 
-## Page Budget - Hard 1-Page Limit
+## Page Budget - Prefer 1 Page, Hard 2-Page Limit
 
-The CV **must** fit on exactly 1 page when compiled. Use these content limits as a guide:
+One page is the preferred target, not a reason to delete useful evidence. A second page is appropriate when the candidate has relevant experience, projects, education, or achievements that materially strengthen this specific application. The CV must never exceed 2 pages.
+
+Use these as the one-page baseline. Expand selectively for a justified second page:
 
 | Section | Max budget |
 |---------|-----------|
@@ -306,7 +308,15 @@ The CV **must** fit on exactly 1 page when compiled. Use these content limits as
 | Publikationen | commented out - academic track only |
 | References | **no section** - see below |
 
-**If in doubt, cut rather than squeeze.** Reducing `\vspace` or geometry scale to force-fit content makes the CV look cramped.
+Before using page 2, remove duplication and low-signal filler. Do not remove unique, posting-relevant evidence merely to claim a one-page CV. Never squeeze margins, font size, or line spacing to force either target.
+
+The second page is justified when at least one of these is true:
+
+- a relevant earlier role adds evidence not present in the recent roles;
+- a project, qualification, award, or publication directly supports a posting requirement;
+- compressing to one page would turn concrete achievements into unsupported keyword lists.
+
+It is not justified by repeated skills, generic responsibilities, references-on-request, or unrelated history.
 
 ## Relevance-weighted cutting (the right way to shrink a CV)
 

@@ -8,7 +8,7 @@ Two groups of checks:
 
 * **Always on** - glyph-name leaks, disallowed symbols, hyphenation splits,
   fused terms, orphan list markers, profile-URL visibility, email, phone, and
-  (when ``--pages`` is given) page count.
+  (when ``--pages`` or ``--max-pages`` is given) page count.
 * **Tailored documents only**, behind ``--check-placeholders`` - unreplaced
   ``[Placeholder]`` text. Templates are *supposed* to be full of placeholders,
   so this would fail every template if it ran by default.
@@ -308,6 +308,7 @@ EXTRACTION_CHECKS = (
 def run_check_suite(
     pdf_path,
     expected_pages=None,
+    max_pages=None,
     min_chars=None,
     required_text=(),
     check_placeholders=False,
@@ -318,10 +319,17 @@ def run_check_suite(
     if not pdf_path.is_file():
         raise VerificationError(f"PDF does not exist: {pdf_path}")
 
+    if expected_pages is not None and max_pages is not None:
+        raise VerificationError("expected_pages and max_pages are mutually exclusive")
+
     results = []
 
-    if expected_pages is not None:
-        name = "page count == {}".format(expected_pages)
+    if expected_pages is not None or max_pages is not None:
+        name = (
+            "page count == {}".format(expected_pages)
+            if expected_pages is not None
+            else "page count <= {}".format(max_pages)
+        )
         try:
             actual = parse_page_count(run_tool(["pdfinfo", str(pdf_path)]))
         except ToolUnavailable as exc:
@@ -329,11 +337,12 @@ def run_check_suite(
         except VerificationError as exc:
             results.append(CheckResult(name, FAIL, [str(exc)]))
         else:
+            valid = actual == expected_pages if expected_pages is not None else actual <= max_pages
             results.append(
                 CheckResult(
                     name,
-                    PASS if actual == expected_pages else FAIL,
-                    [] if actual == expected_pages else ["{} pages".format(actual)],
+                    PASS if valid else FAIL,
+                    [] if valid else ["{} pages".format(actual)],
                 )
             )
 
@@ -408,7 +417,9 @@ def build_parser():
         description="Verify a PDF's page count and ATS-readable text layer."
     )
     parser.add_argument("pdf", type=Path, help="PDF file to verify")
-    parser.add_argument("--pages", type=int, help="required exact page count")
+    page_limit = parser.add_mutually_exclusive_group()
+    page_limit.add_argument("--pages", type=int, help="required exact page count")
+    page_limit.add_argument("--max-pages", type=int, help="maximum allowed page count")
     parser.add_argument(
         "--min-chars",
         type=int,
@@ -439,6 +450,7 @@ def main(argv=None):
         results = run_check_suite(
             args.pdf,
             expected_pages=args.pages,
+            max_pages=args.max_pages,
             min_chars=args.min_chars,
             required_text=args.contains,
             check_placeholders=args.check_placeholders,

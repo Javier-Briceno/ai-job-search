@@ -226,7 +226,7 @@ If either compile fails, fix the error and re-compile until clean.
 Read both PDFs via the Read tool and verify:
 
 **CV (`cv/main_<company>_<role>.pdf`):**
-- [ ] Exactly 2 pages (not 1, not 3)
+- [ ] Prefer 1 page; use 2 when it preserves relevant, non-duplicative evidence; never exceed 2 pages
 - [ ] No orphaned `\cventry` titles — a job/education title line must never sit alone at the bottom of page 1 with its bullets on page 2. This is the most common failure.
 - [ ] Section headings are not isolated at the top of page 2 with only 1-2 lines below
 - [ ] No awkward whitespace gaps
@@ -258,7 +258,7 @@ An ATS parser reads the PDF's embedded **text layer**, not the rendered page —
 **1. Run the mechanical checks.** They are implemented in `tools/verify_pdf.py` — do not re-derive them by eye:
 
 ```bash
-python tools/verify_pdf.py cv/main_<company>_<role>.pdf --pages 1 --check-placeholders
+python tools/verify_pdf.py cv/main_<company>_<role>.pdf --max-pages 2 --check-placeholders
 ```
 
 `--check-placeholders` is correct **here** because this is a tailored document: any surviving `[Placeholder]` is a drafting miss. Never pass that flag against a template — templates are supposed to be full of placeholders.

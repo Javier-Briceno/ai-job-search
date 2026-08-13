@@ -15,6 +15,11 @@ per-file diff commands.
 
 ### Changed
 
+- Replaced the universal one-page CV rule with a one-page preference and a hard
+  two-page cap. A relevant, non-redundant second page is now valid, and the PDF
+  verifier supports `--max-pages` so both one- and two-page CVs pass while a
+  three-page CV fails. Cover letters remain exactly one page.
+
 - Added the opt-in daily delivery layer: `/daily` composes the canonical scrape,
   rank, and bounded prepare workflows; `tools/build_delivery_report.py` creates a
   private, mobile-friendly HTML index of outstanding drafts; and the Windows

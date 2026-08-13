@@ -207,6 +207,25 @@ class RunCheckSuiteTests(unittest.TestCase):
         self.assertIn("2 pages", page_check.details)
 
     @patch("tools.verify_pdf.run_tool")
+    def test_max_pages_accepts_one_or_two_pages(self, mock_run_tool):
+        for pages in (1, 2):
+            with self.subTest(pages=pages):
+                mock_run_tool.side_effect = [f"Pages:          {pages}\n", CLEAN_RAW, CLEAN_RAW]
+                results = run_check_suite(self.pdf, max_pages=2)
+                self.assertEqual(results[0].status, PASS)
+
+    @patch("tools.verify_pdf.run_tool")
+    def test_max_pages_rejects_three_pages(self, mock_run_tool):
+        mock_run_tool.side_effect = ["Pages:          3\n", CLEAN_RAW, CLEAN_RAW]
+        results = run_check_suite(self.pdf, max_pages=2)
+        self.assertEqual(results[0].status, FAIL)
+        self.assertIn("3 pages", results[0].details)
+
+    def test_exact_and_max_page_limits_are_mutually_exclusive(self):
+        with self.assertRaisesRegex(VerificationError, "mutually exclusive"):
+            run_check_suite(self.pdf, expected_pages=1, max_pages=2)
+
+    @patch("tools.verify_pdf.run_tool")
     def test_detects_glyph_leak_and_marker(self, mock_run_tool):
         raw = "MOBILE-ANDROID-ALT +49 1573 4631391 jane.doe@example.com\n○\n"
         mock_run_tool.side_effect = [raw, raw]
