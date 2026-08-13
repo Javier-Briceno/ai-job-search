@@ -299,7 +299,7 @@ If you prefer doing it by hand, the manual route still works: update the guidanc
 
 ### Daily delivery for a nontechnical user (Windows host)
 
-The daily output is a private folder, not an application bot. `deliveries/index.html` lists every outstanding draft with the job link and buttons for its CV and cover letter. Your girlfriend opens that page, applies on the employer website, and uploads the PDFs manually.
+The daily output is a private folder, not an application bot. `deliveries/index.html` lists every outstanding draft with the job link and buttons for its CV and cover letter. The recipient opens that page, applies on the employer website, and uploads the PDFs manually. In the shared folder, PDFs are organized as `Company/Position/`; an existing company folder is reused and each different position gets its own subfolder.
 
 First build the page without spending any Claude credit:
 
@@ -330,7 +330,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_daily.ps1 `
   -Top 1 `
   -MinScore 60 `
   -MaxBudgetUsd 4 `
-  -PublishTo "C:\Users\you\OneDrive\Sara Job Applications"
+  -PublishTo "C:\Users\you\OneDrive\Job Applications"
 ```
 
 The runner uses `claude -p` with Sonnet, automatic safety review, no session persistence, a turn limit, and the dollar ceiling you provide. It copies files into the shared folder but never mirrors or deletes destination content. Scheduled/headless Claude Code usage draws from the plan's Agent SDK credit pool rather than the interactive-session limit; check the current Anthropic plan terms before enabling a recurring task.
@@ -343,10 +343,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\install_daily_task.ps1
   -Top 3 `
   -MinScore 60 `
   -MaxBudgetUsd 12 `
-  -PublishTo "C:\Users\you\OneDrive\Sara Job Applications"
+  -PublishTo "C:\Users\you\OneDrive\Job Applications"
 ```
 
 The task runs only while your Windows account is logged in, and the computer must be awake and online. Logs go to the gitignored `daily_runs/` folder. Preview installation without changing Task Scheduler by adding `-WhatIf`.
+
+The task uses **Start when available**: if the PC is off or asleep at noon, Windows
+runs it after the PC is awake and you are logged in. You can also execute
+`tools\run_daily.ps1` manually with the same arguments at any time. A process lock
+prevents a delayed scheduled run and a manual run from consuming quota at the same
+time.
 
 ### Job search tools
 

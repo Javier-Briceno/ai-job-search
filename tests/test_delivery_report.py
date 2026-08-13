@@ -19,8 +19,8 @@ class DeliveryReportTests(unittest.TestCase):
         self.output = self.repo / "deliveries" / "index.html"
         folder = self.repo / "deliveries" / "2026-08-13" / "acme_partners_analyst_finance"
         folder.mkdir(parents=True)
-        self.cv_pdf = folder / "Sara-CV.pdf"
-        self.cover_pdf = folder / "Sara-Cover-Letter.pdf"
+        self.cv_pdf = folder / "Candidate-CV.pdf"
+        self.cover_pdf = folder / "Candidate-Cover-Letter.pdf"
         self.cv_pdf.write_bytes(b"%PDF-test")
         self.cover_pdf.write_bytes(b"%PDF-test")
         self.tracker = self.repo / "job_search_tracker.csv"
@@ -50,8 +50,8 @@ class DeliveryReportTests(unittest.TestCase):
         self.assertIn("Acme &amp; Partners", page)
         self.assertIn("Analyst &lt;Finance&gt;", page)
         self.assertNotIn("Analyst <Finance>", page)
-        self.assertIn("2026-08-13/acme_partners_analyst_finance/Sara-CV.pdf", page)
-        self.assertIn("2026-08-13/acme_partners_analyst_finance/Sara-Cover-Letter.pdf", page)
+        self.assertIn("2026-08-13/acme_partners_analyst_finance/Candidate-CV.pdf", page)
+        self.assertIn("2026-08-13/acme_partners_analyst_finance/Candidate-Cover-Letter.pdf", page)
         self.assertIn("New today", page)
         self.assertIn("https://example.com/jobs/1?x=1&amp;y=2", page)
 

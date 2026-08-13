@@ -39,7 +39,7 @@ def _identity(value: str) -> str:
     return "".join(character for character in value.casefold() if character.isalnum())
 
 
-def _delivery_pdf(repo: Path, output_dir: Path, row: dict[str, str], kind: str) -> str | None:
+def delivery_pdf_path(repo: Path, row: dict[str, str], kind: str) -> Path | None:
     """Find the human-named PDF copy produced by /apply's export step."""
     day = row.get("date", "").strip()
     date_dir = repo / "deliveries" / day
@@ -54,8 +54,13 @@ def _delivery_pdf(repo: Path, output_dir: Path, row: dict[str, str], kind: str) 
     for folder in sorted(folders):
         for candidate in sorted(folder.glob("*.pdf")):
             if any(keyword in candidate.stem.casefold() for keyword in keywords):
-                return _pdf_link(repo, output_dir, str(candidate))
+                return candidate.resolve()
     return None
+
+
+def _delivery_pdf(repo: Path, output_dir: Path, row: dict[str, str], kind: str) -> str | None:
+    candidate = delivery_pdf_path(repo, row, kind)
+    return _pdf_link(repo, output_dir, str(candidate)) if candidate else None
 
 
 def load_drafts(tracker: Path) -> list[dict[str, str]]:

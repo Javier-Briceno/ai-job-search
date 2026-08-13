@@ -45,6 +45,8 @@ class PowerShellRunnerSpec(unittest.TestCase):
         self.assertIn("CLAUDE_CODE_CLI", self.runner)
         self.assertIn("Anthropic.ClaudeCode_", self.runner)
         self.assertIn("The VS Code extension alone", self.runner)
+        self.assertIn("Another daily run is already active", self.runner)
+        self.assertIn("FileShare]::None", self.runner)
 
     def test_report_runs_even_after_claude_returns_failure(self):
         claude = self.runner.index("$claudeExit = $LASTEXITCODE")
@@ -54,7 +56,7 @@ class PowerShellRunnerSpec(unittest.TestCase):
         self.assertLess(report, failure)
 
     def test_publish_is_copy_only_not_mirror_or_delete(self):
-        self.assertIn("Copy-Item", self.runner)
+        self.assertIn("tools/publish_deliveries.py", self.runner)
         self.assertNotIn("Remove-Item", self.runner)
         self.assertNotIn("/MIR", self.runner.upper())
         self.assertIn("Refusing to publish directly into a drive root", self.runner)

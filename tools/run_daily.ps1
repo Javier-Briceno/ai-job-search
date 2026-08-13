@@ -66,6 +66,16 @@ Windows Task Scheduler. Install the Claude Code CLI, reopen PowerShell, and run
 $python = Get-Command python -ErrorAction Stop
 $logDir = Join-Path $repo 'daily_runs'
 New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+$lockPath = Join-Path $logDir 'daily.lock'
+$lockStream = $null
+try {
+    $lockStream = [IO.File]::Open($lockPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+}
+catch {
+    throw "Another daily run is already active. Wait for it to finish before starting manually."
+}
+
+try {
 $stamp = Get-Date -Format 'yyyy-MM-dd_HHmmss'
 $logPath = Join-Path $logDir "$stamp.json"
 
@@ -108,15 +118,26 @@ if ($PublishTo) {
     if ($destination.TrimEnd('\') -eq $repo.TrimEnd('\')) {
         throw "PublishTo must be a separate shared folder, not the repository root."
     }
-    New-Item -ItemType Directory -Path $destination -Force | Out-Null
-    $deliverySource = Join-Path $repo 'deliveries'
-    Get-ChildItem -LiteralPath $deliverySource -Force | ForEach-Object {
-        Copy-Item -LiteralPath $_.FullName -Destination $destination -Recurse -Force
+    Push-Location $repo
+    try {
+        & $python.Source 'tools/publish_deliveries.py' '--destination' $destination
+        $publishExit = $LASTEXITCODE
     }
-    Write-Output "Published delivery package to: $destination"
+    finally {
+        Pop-Location
+    }
+    if ($publishExit -ne 0) {
+        throw "Delivery publishing failed with exit code $publishExit. See $logPath"
+    }
 }
 
 Write-Output "Daily run log: $logPath"
 if ($claudeExit -ne 0) {
     throw "Claude daily pipeline exited with code $claudeExit. The report was rebuilt from valid existing state."
+}
+}
+finally {
+    if ($lockStream) {
+        $lockStream.Dispose()
+    }
 }

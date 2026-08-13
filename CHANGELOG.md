@@ -21,6 +21,8 @@ per-file diff commands.
   runner uses a fresh non-persistent Sonnet session with turn and dollar limits.
   Publishing is copy-only to an explicitly configured synced folder. Task Scheduler
   installation is a separate `SupportsShouldProcess` script, never automatic.
+  Shared delivery files use a stable `Company/Position/` hierarchy and reuse
+  existing folders without deleting unrelated content.
 
 - Added `/prepare`, a quota-bounded bridge from `/rank` to application documents.
   It selects only ranked, untracked, non-vetoed jobs; defaults to three and refuses

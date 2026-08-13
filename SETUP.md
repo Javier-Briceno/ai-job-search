@@ -293,10 +293,13 @@ Then test one job with a low spend ceiling. Replace `PublishTo` with a private
 OneDrive, Google Drive, Dropbox, or other locally synced folder shared with the
 person who will submit the applications:
 
+The publisher creates `Company/Position/` beneath that folder. Existing company
+and position folders are reused; unrelated files are never deleted.
+
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_daily.ps1 `
   -Top 1 -MinScore 60 -MaxBudgetUsd 4 `
-  -PublishTo "C:\Users\you\OneDrive\Sara Job Applications"
+  -PublishTo "C:\Users\you\OneDrive\Job Applications"
 ```
 
 The runner starts a fresh Sonnet session with `--no-session-persistence`, uses
@@ -310,11 +313,13 @@ Only after inspecting that test should you register the recurring task:
 # Add -WhatIf first to preview without registering anything.
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\install_daily_task.ps1 `
   -At "08:00" -Top 3 -MinScore 60 -MaxBudgetUsd 12 `
-  -PublishTo "C:\Users\you\OneDrive\Sara Job Applications"
+  -PublishTo "C:\Users\you\OneDrive\Job Applications"
 ```
 
 The task uses the current Windows account at limited privilege and runs only while
-that account is logged in. The PC must be awake and online. Inspect gitignored logs
+that account is logged in. The PC must be awake and online. With **Start when
+available**, a missed noon run starts after the PC wakes and the user logs in; the
+runner's process lock prevents overlap with a manual run. Inspect gitignored logs
 under `daily_runs/`. To remove it later:
 
 ```powershell
