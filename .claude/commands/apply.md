@@ -304,14 +304,17 @@ After the final clean compile, delete intermediate build files the compile comma
 
 `main_<company>_<role>` is the **working** name. It keeps the repo sortable and lets several applications coexist; it is not what an employer should receive. A recruiter's downloads folder is full of files called `main_*.pdf`.
 
-At export time only, copy the compiled PDFs to human-readable names built from the candidate's name in `01-candidate-profile.md`:
+At export time only, create a job-specific delivery folder and copy the compiled PDFs to human-readable names built from the candidate's name in `01-candidate-profile.md`:
 
 ```bash
-cd cv && cp main_<company>_<role>.pdf "Vorname-Nachname-Lebenslauf.pdf"
-cd cover_letters && cp cover_<company>_<role>.pdf "Vorname-Nachname-Anschreiben.pdf"
+mkdir -p "deliveries/YYYY-MM-DD/<company>_<role>"
+cp cv/main_<company>_<role>.pdf "deliveries/YYYY-MM-DD/<company>_<role>/Vorname-Nachname-Lebenslauf.pdf"
+cp cover_letters/cover_<company>_<role>.pdf "deliveries/YYYY-MM-DD/<company>_<role>/Vorname-Nachname-Anschreiben.pdf"
 ```
 
-Substitute the real given name and surname; keep the hyphens and drop umlauts and spaces (`Jane-Doe-Lebenslauf.pdf`), since some upload forms reject both. Adjust the suffix to the CV's language when it is not German — `-CV.pdf` / `-Cover-Letter.pdf` for an English application.
+Substitute today's date and derive `<company>_<role>` with the same safe folder-name rule used by `/outcome` Step 1.4. Substitute the real given name and surname; keep the hyphens and drop umlauts and spaces (`Jane-Doe-Lebenslauf.pdf`), since some upload forms reject both. Adjust the suffix to the CV's language when it is not German — `-CV.pdf` / `-Cover-Letter.pdf` for an English application.
+
+If that dated folder already exists for the same open application, refresh its two PDFs. This is a redraft, not a second application. Never export to shared root-level names: they are overwritten by the next company and cannot support `/prepare` batches.
 
 **Copy, do not rename.** The working file stays in place so a later `/apply` run against the same company still finds it, and so the export can be regenerated without recompiling.
 
@@ -341,8 +344,8 @@ Working files (stay in the repo):
 - `cover_letters/cover_<company>_<role><COVER_EXT>`
 
 Deliverables (attach these to the application):
-- `cv/Vorname-Nachname-Lebenslauf.pdf`
-- `cover_letters/Vorname-Nachname-Anschreiben.pdf`
+- `deliveries/YYYY-MM-DD/<company>_<role>/Vorname-Nachname-Lebenslauf.pdf`
+- `deliveries/YYYY-MM-DD/<company>_<role>/Vorname-Nachname-Anschreiben.pdf`
 
 Tell the user: "Both files are ready for your review. Open them to check the final output before submitting."
 

@@ -117,7 +117,7 @@ claude
 /scrape
 ```
 
-This searches multiple job portals for positions matching your profile, deduplicates results, and presents them sorted by fit. Pick a match to run `/apply` on it directly — or, when a scrape returns more jobs than you want to eyeball, run `/rank` to batch-score them all against the fit framework and get a ranked shortlist first.
+This searches multiple job portals for positions matching your profile, deduplicates results, and presents them sorted by fit. Pick a match to run `/apply` on it directly — or, when a scrape returns more jobs than you want to eyeball, run `/rank` to batch-score them all against the fit framework and get a ranked shortlist first. `/prepare` then turns the best few ranked jobs into review-ready application packages in one bounded batch.
 
 ### 5. Apply to a job
 
@@ -133,17 +133,26 @@ If the URL can't be fetched (some job portals block automated access), you can p
 
 This runs the full workflow: evaluate fit, draft CV + cover letter, review with a second agent, revise, and present the final output.
 
+For several ranked jobs, prepare a small batch instead:
+
+```bash
+/prepare --top 3
+```
+
+`/prepare` uses one fresh sequential worker per job, defaults to 3, and has a hard cap of 5 so a 50-result scrape cannot silently consume the entire quota. It skips jobs already present in the tracker and stores each pair of PDFs under its own dated folder in `deliveries/`. Batch mode uses a labeled self-review pass; use `/apply <URL>` when you want the full independent reviewer workflow for one especially important role.
+
 Postings are treated as untrusted input (the workflow follows no instructions embedded in them and fetches no links from their body), but agentic defenses are instruction-level, not a sandbox - on an unfamiliar job board, skim what was fetched and written before you hit send. Details in [SECURITY.md](SECURITY.md).
 
 ## Other commands
 
-`/setup`, `/scrape`, and `/apply` form the core workflow. Ten more commands extend it once your profile is in place:
+`/setup`, `/scrape`, `/rank`, `/prepare`, and `/apply` form the core workflow. Additional commands extend it once your profile is in place:
 
 - **`/interview`** preps you for a scheduled interview on a tracked application. It builds a stage-specific prep pack from the application's archive (the exact posting, the CV and cover letter the interviewer actually read, feedback recorded from earlier rounds), researches the company and interviewers with a verify-before-use rule, maps likely questions to your STAR examples, and offers a mock interview following the roleplay protocol in `07-interview-prep.md`. Gaps get honest bridge answers, never invented experience.
 - **`/outcome`** records what happened to an application - interview stages, offers, rejections, silence. It archives the submitted CV, cover letter, and posting text into `documents/applications/<company>_<role>/`, keeps `outcome.md` in the format `/setup` Path A parses, and updates the tracker. It also owns the stretch before there is an outcome to record: `/outcome followup` surfaces open applications that have gone quiet (default 10 days), drafts a short channel-appropriate follow-up in your writing style using only claims from the materials you already submitted (drafts only, never sends; at most twice per application), and offers a thank-you note in the same turn an interview stage is recorded. Once a few applications resolve, it points you back to `/setup` to calibrate the fit framework from what actually got interviews.
 - **`/notion-sync`** publishes a one-way, read-only view of the pipeline into a Notion database via the official Notion MCP server (OAuth, no API keys) - one row per ranked job plus every tracked application, with a write-once briefing page per row. The repo files stay the system of record: nothing syncs back, and documents sync as filenames only. Complements `/html-report`: that is the deep offline dashboard you regenerate at your desk; this is the glanceable live view from anywhere Notion runs (desktop, web, phone).
 - **`/gmail-sync`** reads your Gmail (via the Gmail connector) for status signals on your open applications - interview invites, assessment links, offers, rejections - and proposes them as a batch for you to approve before anything is written to the tracker or `outcome.md`, citing the source email on every proposed change. Offers stop short of proposing `hired`/`offer_declined` since that's your call; conflicting or unmatched signals get flagged for a manual `/outcome` pass instead of guessed.
 - **`/rank`** bridges `/scrape` and `/apply`: it batch-scores all newly scraped postings against the fit framework (parallel agents fetch each posting and score the five evaluation dimensions) and returns a ranked shortlist with honest per-job strengths and gaps. Deal-breakers veto, deadlines get urgency flags, dead postings get marked expired. Pick a number and it hands off to the full `/apply` workflow.
+- **`/prepare`** prepares the top ranked, untracked jobs as a bounded batch (default 3, maximum 5). Every job runs in a fresh sequential worker context, receives a self-review, compiles and verifies both PDFs, writes a `drafted` tracker row, and gets a non-overwriting dated folder under `deliveries/`.
 - **`/expand`** enriches your profile by scanning public sources you've already linked in it (GitHub repos, portfolio site, Kaggle, Google Scholar) and looking up syllabi for named courses and certifications. Discovered competencies are added to your profile with a source tag. Useful right after `/setup` to surface skills that documents alone don't make explicit.
 - **`/upskill`** analyzes the gap between your profile, your tracked job postings, and your ranked-but-untracked postings (`/rank`'s recorded gaps in `seen_jobs.json`) — or a single posting via `/upskill <URL>`. Produces a prioritized heatmap of skill gaps and a learning plan with web-searched study resources and time estimates. Useful for career planning between applications.
 - **`/html-report`** generates a self-contained HTML dashboard from `job_search_tracker.csv` and the application archives — stat cards, status/sector/channel/funnel charts (inline SVG, no external dependencies), and a filterable applications table. Opens directly in a browser, fully offline. Re-run it any time after `/apply` or `/outcome` adds new entries.
@@ -165,6 +174,7 @@ ai-job-search/
 │   │   ├── add-template.md            # /add-template register custom templates (LaTeX, Typst, ...)
 │   │   ├── add-portal.md              # /add-portal generate a job-portal search skill for your market
 │   │   ├── rank.md                    # /rank triage scraped jobs into a ranked shortlist
+│   │   ├── prepare.md                 # /prepare generate a bounded batch from ranked jobs
 │   │   ├── outcome.md                 # /outcome record application results, archive materials
 │   │   ├── gmail-sync.md              # /gmail-sync auto-detect application status from Gmail
 │   │   ├── interview.md               # /interview stage-specific prep pack + mock interview

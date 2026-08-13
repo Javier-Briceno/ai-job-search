@@ -15,6 +15,14 @@ per-file diff commands.
 
 ### Changed
 
+- Added `/prepare`, a quota-bounded bridge from `/rank` to application documents.
+  It selects only ranked, untracked, non-vetoed jobs; defaults to three and refuses
+  more than five; and processes one fresh Sonnet worker at a time so tracker writes
+  cannot race and one conversation does not accumulate every posting. Batch mode is
+  explicit about using a self-review rather than claiming an independent reviewer.
+  `/apply` now exports into `deliveries/YYYY-MM-DD/<company>_<role>/`, preventing the
+  next company from overwriting the previous pair of recruiter-facing PDFs.
+
 - **BREAKING: `cv/main_example.tex` rebuilt for ATS extraction and the German market**
   (`05-cv-templates.md` 1.4.0 -> 2.0.0). The stock template produced a PDF whose text
   layer no ATS could read correctly, and two of the faults also damaged the rendered
