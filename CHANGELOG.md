@@ -15,6 +15,13 @@ per-file diff commands.
 
 ### Changed
 
+- Added the opt-in daily delivery layer: `/daily` composes the canonical scrape,
+  rank, and bounded prepare workflows; `tools/build_delivery_report.py` creates a
+  private, mobile-friendly HTML index of outstanding drafts; and the Windows
+  runner uses a fresh non-persistent Sonnet session with turn and dollar limits.
+  Publishing is copy-only to an explicitly configured synced folder. Task Scheduler
+  installation is a separate `SupportsShouldProcess` script, never automatic.
+
 - Added `/prepare`, a quota-bounded bridge from `/rank` to application documents.
   It selects only ranked, untracked, non-vetoed jobs; defaults to three and refuses
   more than five; and processes one fresh Sonnet worker at a time so tracker writes

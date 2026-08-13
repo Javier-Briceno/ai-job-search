@@ -265,6 +265,62 @@ Set-Location cover_letters; xelatex cover_<company>_<role>.tex; Set-Location ..
 
 These commands apply to the stock templates (moderncv CV, KOMA-Script `scrlttr2` cover letter). If you'd rather use your own LaTeX template, run `/add-template` — it captures the template's compile engine, fonts, style rules, and page limit, test-compiles it, and wires it into `/apply`. See the "LaTeX templates" section in the README.
 
+## 7a. Optional daily automation on Windows
+
+Daily automation is intentionally opt-in. It uses Claude Code's non-interactive
+mode, which consumes Agent SDK credit, and it can make several model requests in
+one run. Test the deterministic delivery page first:
+
+```powershell
+python tools/build_delivery_report.py
+Start-Process deliveries\index.html
+```
+
+The VS Code extension alone cannot run from Windows Task Scheduler. Confirm the
+standalone Claude Code CLI is installed and authenticated in a new PowerShell:
+
+```powershell
+claude --version
+claude auth status
+```
+
+If the command is missing, install the official Windows CLI with
+`winget install Anthropic.ClaudeCode`, reopen PowerShell, and authenticate. For a
+CLI outside `PATH`, add `-ClaudePath "C:\path\to\claude.exe"` to both the runner
+and installer commands below, or set `CLAUDE_CODE_CLI`.
+
+Then test one job with a low spend ceiling. Replace `PublishTo` with a private
+OneDrive, Google Drive, Dropbox, or other locally synced folder shared with the
+person who will submit the applications:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_daily.ps1 `
+  -Top 1 -MinScore 60 -MaxBudgetUsd 4 `
+  -PublishTo "C:\Users\you\OneDrive\Sara Job Applications"
+```
+
+The runner starts a fresh Sonnet session with `--no-session-persistence`, uses
+Claude Code's `auto` permission mode, caps agentic turns, and enforces the supplied
+`--max-budget-usd`. It never clicks Submit. It always rebuilds
+`deliveries/index.html` from durable tracker state, even after a partial run.
+
+Only after inspecting that test should you register the recurring task:
+
+```powershell
+# Add -WhatIf first to preview without registering anything.
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\install_daily_task.ps1 `
+  -At "08:00" -Top 3 -MinScore 60 -MaxBudgetUsd 12 `
+  -PublishTo "C:\Users\you\OneDrive\Sara Job Applications"
+```
+
+The task uses the current Windows account at limited privilege and runs only while
+that account is logged in. The PC must be awake and online. Inspect gitignored logs
+under `daily_runs/`. To remove it later:
+
+```powershell
+Unregister-ScheduledTask -TaskName "AI Job Search Daily" -Confirm
+```
+
 ## 8. Pulling upstream updates into your fork
 
 Upstream keeps improving the methodology files your fork has personalized, so plan for updates from day one:

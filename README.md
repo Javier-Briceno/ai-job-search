@@ -153,6 +153,7 @@ Postings are treated as untrusted input (the workflow follows no instructions em
 - **`/gmail-sync`** reads your Gmail (via the Gmail connector) for status signals on your open applications - interview invites, assessment links, offers, rejections - and proposes them as a batch for you to approve before anything is written to the tracker or `outcome.md`, citing the source email on every proposed change. Offers stop short of proposing `hired`/`offer_declined` since that's your call; conflicting or unmatched signals get flagged for a manual `/outcome` pass instead of guessed.
 - **`/rank`** bridges `/scrape` and `/apply`: it batch-scores all newly scraped postings against the fit framework (parallel agents fetch each posting and score the five evaluation dimensions) and returns a ranked shortlist with honest per-job strengths and gaps. Deal-breakers veto, deadlines get urgency flags, dead postings get marked expired. Pick a number and it hands off to the full `/apply` workflow.
 - **`/prepare`** prepares the top ranked, untracked jobs as a bounded batch (default 3, maximum 5). Every job runs in a fresh sequential worker context, receives a self-review, compiles and verifies both PDFs, writes a `drafted` tracker row, and gets a non-overwriting dated folder under `deliveries/`.
+- **`/daily`** composes `/scrape`, `/rank`, and `/prepare` for one bounded daily cycle, then rebuilds `deliveries/index.html`. It never submits an application and never exceeds `/prepare`'s five-job cap. The PowerShell runner below can execute it with a separate session, turn limit, and spend ceiling.
 - **`/expand`** enriches your profile by scanning public sources you've already linked in it (GitHub repos, portfolio site, Kaggle, Google Scholar) and looking up syllabi for named courses and certifications. Discovered competencies are added to your profile with a source tag. Useful right after `/setup` to surface skills that documents alone don't make explicit.
 - **`/upskill`** analyzes the gap between your profile, your tracked job postings, and your ranked-but-untracked postings (`/rank`'s recorded gaps in `seen_jobs.json`) — or a single posting via `/upskill <URL>`. Produces a prioritized heatmap of skill gaps and a learning plan with web-searched study resources and time estimates. Useful for career planning between applications.
 - **`/html-report`** generates a self-contained HTML dashboard from `job_search_tracker.csv` and the application archives — stat cards, status/sector/channel/funnel charts (inline SVG, no external dependencies), and a filterable applications table. Opens directly in a browser, fully offline. Re-run it any time after `/apply` or `/outcome` adds new entries.
@@ -175,6 +176,7 @@ ai-job-search/
 │   │   ├── add-portal.md              # /add-portal generate a job-portal search skill for your market
 │   │   ├── rank.md                    # /rank triage scraped jobs into a ranked shortlist
 │   │   ├── prepare.md                 # /prepare generate a bounded batch from ranked jobs
+│   │   ├── daily.md                   # /daily bounded scrape-to-delivery orchestration
 │   │   ├── outcome.md                 # /outcome record application results, archive materials
 │   │   ├── gmail-sync.md              # /gmail-sync auto-detect application status from Gmail
 │   │   ├── interview.md               # /interview stage-specific prep pack + mock interview
@@ -294,6 +296,57 @@ Point it at your source file (a `.tex` file plus any `.cls`/`.sty` files or bund
 - `/add-template --use default` reverts to the stock moderncv / scrlttr2 templates
 
 If you prefer doing it by hand, the manual route still works: update the guidance in `05-cv-templates.md` and `06-cover-letter-templates.md`.
+
+### Daily delivery for a nontechnical user (Windows host)
+
+The daily output is a private folder, not an application bot. `deliveries/index.html` lists every outstanding draft with the job link and buttons for its CV and cover letter. Your girlfriend opens that page, applies on the employer website, and uploads the PDFs manually.
+
+First build the page without spending any Claude credit:
+
+```powershell
+python tools/build_delivery_report.py
+Start-Process deliveries\index.html
+```
+
+The scheduled runner needs the standalone Claude Code CLI; the VS Code extension
+by itself is not visible to Windows Task Scheduler. Verify it from a new
+PowerShell window before continuing:
+
+```powershell
+claude --version
+claude auth status
+```
+
+If `claude` is not recognized, install the official Windows CLI with
+`winget install Anthropic.ClaudeCode`, reopen PowerShell, authenticate, and try
+again. If the executable is installed outside `PATH`, pass
+`-ClaudePath "C:\path\to\claude.exe"` to both scripts below (or set the
+`CLAUDE_CODE_CLI` environment variable).
+
+For delivery across computers, create a private shared folder in OneDrive, Google Drive for desktop, Dropbox, or another synced filesystem. Test one bounded headless run before scheduling it:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_daily.ps1 `
+  -Top 1 `
+  -MinScore 60 `
+  -MaxBudgetUsd 4 `
+  -PublishTo "C:\Users\you\OneDrive\Sara Job Applications"
+```
+
+The runner uses `claude -p` with Sonnet, automatic safety review, no session persistence, a turn limit, and the dollar ceiling you provide. It copies files into the shared folder but never mirrors or deletes destination content. Scheduled/headless Claude Code usage draws from the plan's Agent SDK credit pool rather than the interactive-session limit; check the current Anthropic plan terms before enabling a recurring task.
+
+After the one-job test succeeds, install the opt-in daily task (example: 08:00):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\install_daily_task.ps1 `
+  -At "08:00" `
+  -Top 3 `
+  -MinScore 60 `
+  -MaxBudgetUsd 12 `
+  -PublishTo "C:\Users\you\OneDrive\Sara Job Applications"
+```
+
+The task runs only while your Windows account is logged in, and the computer must be awake and online. Logs go to the gitignored `daily_runs/` folder. Preview installation without changing Task Scheduler by adding `-WhatIf`.
 
 ### Job search tools
 

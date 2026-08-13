@@ -56,6 +56,7 @@ REQUIRED_IGNORE_RULES = [
     "*_BehavioralReport.pdf",
     "linkedin_Profile.pdf",
     "deliveries/",
+    "daily_runs/",
     "cv/main_*.*",
     "!cv/main_example.tex",
     # ATS text extractions (/apply step 5d) carry the CV's full text.
