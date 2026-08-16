@@ -103,5 +103,47 @@ class SettingsShapeTests(LinterRepoFixture):
                 self.assertEqual(result.returncode, 1)
                 self.assertIn("expected permissions.allow to be a list", result.stdout)
                 self.assertNotIn("Traceback", result.stderr)
+
+
+class CommandFrontmatterTests(LinterRepoFixture):
+    @property
+    def command(self):
+        return self.root / ".claude" / "commands" / "setup.md"
+
+    def test_optional_command_frontmatter_is_accepted(self):
+        self.command.write_text(
+            "---\ndescription: Test command\nmodel: sonnet\n---\n\n"
+            "# /setup - Test setup command\n",
+            encoding="utf-8",
+        )
+
+        result = run_linter(self.root)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_frontmatter_does_not_replace_command_title(self):
+        self.command.write_text(
+            "---\ndescription: Test command\n---\n\nNo slash-command title\n",
+            encoding="utf-8",
+        )
+
+        result = run_linter(self.root)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("command file must start with a '# /<name>' title", result.stdout)
+
+    def test_unterminated_command_frontmatter_fails_cleanly(self):
+        self.command.write_text(
+            "---\ndescription: Test command\n# /setup - hidden inside frontmatter\n",
+            encoding="utf-8",
+        )
+
+        result = run_linter(self.root)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("unterminated YAML frontmatter", result.stdout)
+        self.assertNotIn("Traceback", result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

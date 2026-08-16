@@ -12,6 +12,8 @@ Two groups of checks:
 * **Tailored documents only**, behind ``--check-placeholders`` - unreplaced
   ``[Placeholder]`` text. Templates are *supposed* to be full of placeholders,
   so this would fail every template if it ran by default.
+* **CV layout heuristics**, behind ``--check-layout-quality`` - section
+  headings stranded at a page foot and a mostly empty trailing page.
 
 ``pdftotext`` and ``pdfinfo`` come from poppler, which is **not** part of MiKTeX
 or TeX Live. When they are missing the checks that need them report ``SKIP``
@@ -83,6 +85,30 @@ _LOWER_UPPER = re.compile(r"[a-zäöüß][A-ZÄÖÜ]")
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.\w+")
 _PHONE = re.compile(r"(?:\+\d[\d\s/()-]{7,}|\b0\d[\d\s/()-]{7,})")
 _PLACEHOLDER = re.compile(r"\[[A-Za-z][^\]\n]{2,40}\]")
+_PAGE_FOOTER = re.compile(r"^\s*\d+\s*/\s*\d+\s*$")
+
+DEFAULT_SECTION_HEADINGS = frozenset(
+    heading.casefold()
+    for heading in (
+        "Kernkompetenzen",
+        "Berufserfahrung",
+        "Berufserfahrung (Fortsetzung)",
+        "Projekte",
+        "Ausbildung",
+        "Sprachen",
+        "Auszeichnungen",
+        "Zertifikate",
+        "Profile",
+        "Core Competencies",
+        "Professional Experience",
+        "Experience",
+        "Projects",
+        "Education",
+        "Languages",
+        "Awards",
+        "Certifications",
+    )
+)
 
 
 def is_disallowed_char(char: str) -> bool:
@@ -164,6 +190,49 @@ def find_missing_profile_urls(raw_text):
 def find_placeholders(raw_text):
     """Unreplaced [Placeholder] text. Tailored documents only."""
     return _PLACEHOLDER.findall(raw_text)
+
+
+def _page_content_lines(page_text):
+    """Non-empty page lines, excluding the CV's n/m footer."""
+    return [
+        line.strip()
+        for line in page_text.splitlines()
+        if line.strip() and not _PAGE_FOOTER.match(line)
+    ]
+
+
+def find_orphan_section_headings(layout_text, headings=DEFAULT_SECTION_HEADINGS):
+    """Section headings stranded at the foot of a non-final page."""
+    pages = [page for page in layout_text.split("\f") if page.strip()]
+    orphaned = []
+    for page_number, page in enumerate(pages[:-1], start=1):
+        lines = _page_content_lines(page)
+        if lines and lines[-1].casefold() in headings:
+            orphaned.append("page {}: {}".format(page_number, lines[-1]))
+    return orphaned
+
+
+def find_unbalanced_pages(layout_text, minimum_ratio=0.40):
+    """Flag a multi-page document whose shortest page is mostly empty.
+
+    This is intentionally a coarse text-layer heuristic. It does not replace
+    visual review; it catches the common CV failure where a single trailing
+    section spills onto page 2 while page 1 is packed.
+    """
+    pages = [page for page in layout_text.split("\f") if page.strip()]
+    lengths = [sum(len(line) for line in _page_content_lines(page)) for page in pages]
+    if len(lengths) < 2 or not max(lengths):
+        return []
+    shortest = min(lengths)
+    longest = max(lengths)
+    ratio = shortest / longest
+    if ratio >= minimum_ratio:
+        return []
+    return [
+        "page text lengths {} (shortest/longest {:.0%}, expected at least {:.0%})".format(
+            lengths, ratio, minimum_ratio
+        )
+    ]
 
 
 def parse_page_count(pdfinfo_output):
@@ -249,7 +318,10 @@ def run_tool(command):
 
 
 def extract_text(pdf_path, layout=False):
-    command = ["pdftotext"]
+    # Xpdf on Windows defaults to a locale-specific encoding even when the PDF
+    # contains a correct Unicode text layer. Request UTF-8 from the producer;
+    # decoding UTF-8 in run_tool() is not enough if the producer emitted Latin-1.
+    command = ["pdftotext", "-enc", "UTF-8"]
     if layout:
         command.append("-layout")
     command += [str(pdf_path), "-"]
@@ -278,7 +350,9 @@ def verify_pdf(pdf_path, expected_pages=None, min_chars=1, required_text=()):
                 f"expected {expected_pages} page(s), found {actual_pages}"
             )
 
-    extracted_text = normalize_text(run_tool(["pdftotext", "-layout", str(pdf_path), "-"]))
+    extracted_text = normalize_text(
+        run_tool(["pdftotext", "-enc", "UTF-8", "-layout", str(pdf_path), "-"])
+    )
     if len(extracted_text) < min_chars:
         raise VerificationError(
             f"text layer has {len(extracted_text)} character(s); expected at least {min_chars}"
@@ -312,6 +386,7 @@ def run_check_suite(
     min_chars=None,
     required_text=(),
     check_placeholders=False,
+    check_layout_quality=False,
 ):
     """Run every check and return a list of CheckResult. Never raises for a
     check failure - inspect the results. Raises only if the PDF is absent."""
@@ -353,6 +428,10 @@ def run_check_suite(
         checks_needing_text.append("required text present")
     if check_placeholders:
         checks_needing_text.append("no placeholders")
+    if check_layout_quality:
+        checks_needing_text.extend(
+            ("no orphan section headings", "balanced multi-page layout")
+        )
 
     try:
         raw = extract_text(pdf_path, layout=False)
@@ -396,6 +475,14 @@ def run_check_suite(
     if check_placeholders:
         results.append(_result("no placeholders", find_placeholders(raw)))
 
+    if check_layout_quality:
+        results.append(
+            _result("no orphan section headings", find_orphan_section_headings(layout))
+        )
+        results.append(
+            _result("balanced multi-page layout", find_unbalanced_pages(layout))
+        )
+
     return results
 
 
@@ -437,6 +524,11 @@ def build_parser():
         help="fail on unreplaced [Placeholder] text; for tailored documents, not templates",
     )
     parser.add_argument(
+        "--check-layout-quality",
+        action="store_true",
+        help="fail on orphaned CV section headings or a mostly empty trailing page",
+    )
+    parser.add_argument(
         "--strict",
         action="store_true",
         help="treat SKIP (poppler missing) as a failure",
@@ -454,6 +546,7 @@ def main(argv=None):
             min_chars=args.min_chars,
             required_text=args.contains,
             check_placeholders=args.check_placeholders,
+            check_layout_quality=args.check_layout_quality,
         )
     except VerificationError as exc:
         print(f"Error: {args.pdf}: {exc}", file=sys.stderr)

@@ -16,7 +16,9 @@ from tools.verify_pdf import (
     find_hyphen_splits,
     find_missing_profile_urls,
     find_orphan_list_markers,
+    find_orphan_section_headings,
     find_placeholders,
+    find_unbalanced_pages,
     is_disallowed_char,
     parse_page_count,
     run_check_suite,
@@ -146,6 +148,24 @@ class PlaceholderTests(unittest.TestCase):
         self.assertEqual(find_placeholders("ACME GmbH, Werkstudent Controlling"), [])
 
 
+class LayoutQualityTests(unittest.TestCase):
+    def test_detects_section_heading_stranded_at_page_foot(self):
+        layout = "Berufserfahrung\nACME GmbH\nProjekte\n1/2\fProjekt A\n2/2\f"
+        self.assertEqual(find_orphan_section_headings(layout), ["page 1: Projekte"])
+
+    def test_accepts_heading_followed_by_content(self):
+        layout = "Projekte\nProjekt A\n1/2\fAusbildung\nUniversitaet\n2/2\f"
+        self.assertEqual(find_orphan_section_headings(layout), [])
+
+    def test_detects_mostly_empty_second_page(self):
+        layout = ("A" * 1000) + "\n1/2\f" + ("B" * 200) + "\n2/2\f"
+        self.assertTrue(find_unbalanced_pages(layout))
+
+    def test_accepts_reasonably_balanced_two_page_document(self):
+        layout = ("A" * 1000) + "\n1/2\f" + ("B" * 600) + "\n2/2\f"
+        self.assertEqual(find_unbalanced_pages(layout), [])
+
+
 CLEAN_RAW = (
     "Jane Doe\n"
     "Musterstraße 1, 20095 Hamburg | +49 1573 4631391 | jane.doe@example.com\n"
@@ -195,6 +215,28 @@ class RunCheckSuiteTests(unittest.TestCase):
         placeholder = next(r for r in results if r.name == "no placeholders")
         self.assertEqual(placeholder.status, FAIL)
         self.assertEqual(suite_exit_code(results), 1)
+
+    @patch("tools.verify_pdf.run_tool")
+    def test_layout_quality_checks_are_opt_in(self, mock_run_tool):
+        layout = CLEAN_RAW + "Projekte\n1/2\fShort\n2/2\f"
+        mock_run_tool.side_effect = [CLEAN_RAW, layout]
+
+        results = run_check_suite(self.pdf)
+
+        names = [result.name for result in results]
+        self.assertNotIn("no orphan section headings", names)
+        self.assertNotIn("balanced multi-page layout", names)
+
+    @patch("tools.verify_pdf.run_tool")
+    def test_layout_quality_failures_are_reported(self, mock_run_tool):
+        layout = CLEAN_RAW + ("A" * 1000) + "\nProjekte\n1/2\fShort\n2/2\f"
+        mock_run_tool.side_effect = [CLEAN_RAW, layout]
+
+        results = run_check_suite(self.pdf, check_layout_quality=True)
+        by_name = {result.name: result for result in results}
+
+        self.assertEqual(by_name["no orphan section headings"].status, FAIL)
+        self.assertEqual(by_name["balanced multi-page layout"].status, FAIL)
 
     @patch("tools.verify_pdf.run_tool")
     def test_reports_wrong_page_count(self, mock_run_tool):
@@ -357,6 +399,17 @@ class RunToolTests(unittest.TestCase):
         kwargs = mock_run.call_args.kwargs
         self.assertEqual(kwargs.get("encoding"), "utf-8")
         self.assertEqual(kwargs.get("errors"), "replace")
+
+    @patch("tools.verify_pdf.run_tool", return_value="")
+    def test_extract_text_requests_utf8_from_pdftotext(self, mock_run_tool):
+        from tools.verify_pdf import extract_text
+
+        extract_text("example.pdf", layout=True)
+
+        self.assertEqual(
+            mock_run_tool.call_args.args[0],
+            ["pdftotext", "-enc", "UTF-8", "-layout", "example.pdf", "-"],
+        )
 
     @patch("tools.verify_pdf.subprocess.run")
     def test_reports_unreadable_pdf(self, mock_run):
