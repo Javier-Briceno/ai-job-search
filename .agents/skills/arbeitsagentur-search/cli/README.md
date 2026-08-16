@@ -3,7 +3,7 @@
 CLI for searching jobs on the Bundesagentur für Arbeit (German Federal Employment Agency)
 official Jobsuche API, across all of Germany.
 
-**Data source**: `rest.arbeitsagentur.de/jobboerse/jobsuche-service` (`pc/v4/jobs`, `pc/v4/jobdetails/<encoded refnr>`).
+**Data source**: `rest.arbeitsagentur.de/jobboerse/jobsuche-service` (`pc/v6/jobs`, `pc/v4/jobdetails/<encoded refnr>`).
 **Authentication**: A single public, well-known static `X-API-Key` value. No account or registration.
 **Dependencies**: None (plain `bun` + `fetch`). `bun install` is optional and only pulls dev type defs.
 

@@ -1,6 +1,6 @@
 ---
 name: arbeitsagentur-search
-version: 1.0.0
+version: 1.0.1
 description: >
   Use this skill for job searches in Germany via the Bundesagentur für Arbeit
   (German Federal Employment Agency) official Jobbörse. This is the largest
@@ -88,7 +88,7 @@ All errors are written to **stderr** as `{ "error": "...", "code": "..." }` and 
 
 ## Notes
 
-- Data is from `rest.arbeitsagentur.de/jobboerse/jobsuche-service` (search: `pc/v4/jobs`, detail: `pc/v4/jobdetails/<encoded refnr>`). Authentication is a single public, well-known `X-API-Key` value (`jobboerse-jobsuche`) - there is no registration or personal credential involved.
+- Data is from `rest.arbeitsagentur.de/jobboerse/jobsuche-service` (search: `pc/v6/jobs`, detail: `pc/v4/jobdetails/<encoded refnr>`). Authentication is a single public, well-known `X-API-Key` value (`jobboerse-jobsuche`) - there is no registration or personal credential involved.
 - The detail endpoint expects the **standard-Base64 encoding of the refnr**, not the raw refnr. The CLI does this encoding automatically; you can pass either the raw refnr or an already-encoded ID to `detail`.
 - Some postings are cross-posted from third-party boards (`externeUrl`/`externeURL` in the raw response) - the CLI's `url` field always points at the stable Bundesagentur detail page (`arbeitsagentur.de/jobsuche/jobdetail/<refnr>`) regardless, and `detail`'s `applyUrl` surfaces the external apply link when the posting has one.
 - No rate-limit issues observed in testing, but the CLI still backs off on 429/5xx like the other skills in this repo.

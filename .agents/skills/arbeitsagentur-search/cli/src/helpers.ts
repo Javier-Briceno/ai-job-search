@@ -4,7 +4,7 @@
 // robots.txt on arbeitsagentur.de is fully open (Allow: /), and this is an
 // official government API, not scraped HTML, so there are no ToS concerns.
 
-export const SEARCH_URL = "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs"
+export const SEARCH_URL = "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs"
 export const DETAIL_URL = "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails"
 export const API_KEY = "jobboerse-jobsuche"
 
@@ -65,19 +65,19 @@ export interface RawJobLocation {
 }
 
 export interface RawJobCard {
-  titel: string
-  refnr: string
-  arbeitgeber?: string | null
-  arbeitsort?: RawJobLocation | null
-  aktuelleVeroeffentlichungsdatum?: string | null
-  externeUrl?: string | null
+  stellenangebotsTitel: string
+  referenznummer: string
+  firma?: string | null
+  stellenlokationen?: Array<{ adresse?: RawJobLocation | null }>
+  veroeffentlichungszeitraum?: { von?: string | null }
+  externeURL?: string | null
 }
 
 export interface RawSearchResponse {
-  stellenangebote: RawJobCard[]
-  maxErgebnisse: number
-  page: number
-  size: number
+  ergebnisliste?: RawJobCard[]
+  maxErgebnisse?: number
+  page?: number
+  size?: number
 }
 
 export interface JobCard {
@@ -118,12 +118,12 @@ export function detailPageUrl(refnr: string): string {
 
 export function normalizeCard(raw: RawJobCard): JobCard {
   return {
-    id: raw.refnr,
-    title: decodeHtmlEntities(raw.titel),
-    company: raw.arbeitgeber ? decodeHtmlEntities(raw.arbeitgeber) : null,
-    location: formatLocation(raw.arbeitsort),
-    date: raw.aktuelleVeroeffentlichungsdatum ?? null,
-    url: detailPageUrl(raw.refnr),
+    id: raw.referenznummer,
+    title: decodeHtmlEntities(raw.stellenangebotsTitel),
+    company: raw.firma ? decodeHtmlEntities(raw.firma) : null,
+    location: formatLocation(raw.stellenlokationen?.[0]?.adresse),
+    date: raw.veroeffentlichungszeitraum?.von ?? null,
+    url: detailPageUrl(raw.referenznummer),
   }
 }
 

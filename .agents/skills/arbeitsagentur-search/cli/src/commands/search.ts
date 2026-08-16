@@ -47,7 +47,7 @@ function renderTable(cards: JobCard[]): string {
 export async function runSearch(opts: SearchOpts): Promise<number> {
   try {
     const data = await apiFetch<RawSearchResponse>(buildUrl(opts))
-    let cards = (data?.stellenangebote ?? []).map(normalizeCard)
+    let cards = (data?.ergebnisliste ?? []).map(normalizeCard)
     if (opts.limit !== undefined && opts.limit >= 0) cards = cards.slice(0, opts.limit)
 
     if (opts.format === "table") {

@@ -20,11 +20,11 @@ describe("looksBase64", () => {
 describe("normalizeCard", () => {
   test("maps raw fields and builds a detail-page URL from refnr", () => {
     const card = normalizeCard({
-      titel: "Werkstudent Controlling",
-      refnr: "12811-2300109-S",
-      arbeitgeber: "plusserver GmbH",
-      arbeitsort: { plz: "51149", ort: "Köln" },
-      aktuelleVeroeffentlichungsdatum: "2026-07-21",
+      stellenangebotsTitel: "Werkstudent Controlling",
+      referenznummer: "12811-2300109-S",
+      firma: "plusserver GmbH",
+      stellenlokationen: [{ adresse: { plz: "51149", ort: "Köln" } }],
+      veroeffentlichungszeitraum: { von: "2026-07-21" },
     });
     expect(card).toEqual({
       id: "12811-2300109-S",
@@ -37,7 +37,7 @@ describe("normalizeCard", () => {
   });
 
   test("missing fields become null, never omitted", () => {
-    const card = normalizeCard({ titel: "Job", refnr: "1-S" });
+    const card = normalizeCard({ stellenangebotsTitel: "Job", referenznummer: "1-S" });
     expect(card.company).toBeNull();
     expect(card.location).toBeNull();
     expect(card.date).toBeNull();
@@ -45,9 +45,9 @@ describe("normalizeCard", () => {
 
   test("decodes HTML entities in title and company (regression: API returns literal &amp;)", () => {
     const card = normalizeCard({
-      titel: "Werkstudent:in Controlling &amp; Finanzmanagement (D/M/W)",
-      refnr: "1-S",
-      arbeitgeber: "Müller &amp; Partner GmbH",
+      stellenangebotsTitel: "Werkstudent:in Controlling &amp; Finanzmanagement (D/M/W)",
+      referenznummer: "1-S",
+      firma: "Müller &amp; Partner GmbH",
     });
     expect(card.title).toBe("Werkstudent:in Controlling & Finanzmanagement (D/M/W)");
     expect(card.company).toBe("Müller & Partner GmbH");

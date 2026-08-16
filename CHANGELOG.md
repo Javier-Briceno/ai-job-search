@@ -15,6 +15,10 @@ per-file diff commands.
 
 ### Changed
 
+- Updated `arbeitsagentur-search` from the retired `pc/v4/jobs` search route to
+  the supported `pc/v6/jobs` route and adapted its parser to the v6 result
+  schema. The existing v4 job-detail route remains in use.
+
 - Replaced the universal one-page CV rule with a one-page preference and a hard
   two-page cap. A relevant, non-redundant second page is now valid, and the PDF
   verifier supports `--max-pages` so both one- and two-page CVs pass while a

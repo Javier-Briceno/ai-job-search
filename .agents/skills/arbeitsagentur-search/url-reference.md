@@ -19,13 +19,11 @@ This is a single, well-known static value used by the Bundesagentur's own public
 ## Search
 
 ```
-GET https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs
+GET https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs
 ```
 
-(A `pc/v6/jobs` variant also exists and is the API's currently "recommended" version per
-third-party documentation, but returns a different, more deeply-nested response shape.
-`pc/v4` was used here because it was directly verified end-to-end, including the detail
-endpoint below, and returns the same substantive data.)
+The older `pc/v4/jobs` route now returns HTTP 403. Search therefore uses the supported
+v6 route; job details continue to use the separately versioned v4 endpoint below.
 
 Query params:
 
@@ -39,19 +37,18 @@ Query params:
 | `page` | 1-indexed page | `1` |
 | `size` | Results per page | `25` |
 
-Response shape (top-level `stellenangebote` array):
+Response shape (top-level `ergebnisliste` array):
 
 ```json
 {
-  "stellenangebote": [
+  "ergebnisliste": [
     {
-      "beruf": "Betriebswirt/in (Hochschule) - Rechnungswesen und Controlling",
-      "titel": "Werkstudent Controlling / Sales Controlling (m/w/d)",
-      "refnr": "12811-2300109-S",
-      "arbeitsort": { "plz": "51149", "ort": "Köln", "region": "Nordrhein-Westfalen", "land": "Deutschland" },
-      "arbeitgeber": "plusserver GmbH",
-      "aktuelleVeroeffentlichungsdatum": "2026-07-21",
-      "externeUrl": "https://www.finest-jobs.com/stellenanzeige/..."
+      "stellenangebotsTitel": "Werkstudent Controlling / Sales Controlling (m/w/d)",
+      "referenznummer": "12811-2300109-S",
+      "stellenlokationen": [{ "adresse": { "plz": "51149", "ort": "Köln" } }],
+      "firma": "plusserver GmbH",
+      "veroeffentlichungszeitraum": { "von": "2026-07-21" },
+      "externeURL": "https://www.finest-jobs.com/stellenanzeige/..."
     }
   ],
   "maxErgebnisse": 10,
