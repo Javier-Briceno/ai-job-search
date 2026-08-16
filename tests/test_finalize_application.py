@@ -7,7 +7,11 @@ from unittest.mock import patch
 
 from tools.finalize_application import (
     FinalizationError,
+    attempt_ledger_path,
+    begin_check_attempt,
     check_document,
+    close_attempt_ledger,
+    finish_check_attempt,
     load_clean_receipt,
     run_export,
     safe_filename_component,
@@ -35,6 +39,65 @@ class NamingTests(unittest.TestCase):
         for value in ("../outside", "2026-02-30", "15-08-2026"):
             with self.subTest(value=value), self.assertRaises(FinalizationError):
                 validate_date(value)
+
+
+class AttemptLedgerTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.repo = Path(self.temp_dir.name)
+        self.slug = "company_role"
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def finish(self, attempt, status="failed"):
+        finish_check_attempt(self.repo, self.slug, attempt["number"], status)
+
+    def test_three_standard_checks_then_one_explicit_override(self):
+        for number in range(1, 4):
+            attempt = begin_check_attempt(self.repo, self.slug)
+            self.assertEqual(attempt["number"], number)
+            self.assertFalse(attempt["human_override"])
+            self.finish(attempt)
+
+        with self.assertRaisesRegex(FinalizationError, "three checks are already recorded"):
+            begin_check_attempt(self.repo, self.slug)
+
+        final_attempt = begin_check_attempt(
+            self.repo,
+            self.slug,
+            human_override=True,
+        )
+        self.assertEqual(final_attempt["number"], 4)
+        self.assertTrue(final_attempt["human_override"])
+        self.finish(final_attempt)
+
+        with self.assertRaisesRegex(FinalizationError, "four-check hard limit"):
+            begin_check_attempt(self.repo, self.slug, human_override=True)
+
+        ledger = json.loads(
+            attempt_ledger_path(self.repo, self.slug).read_text(encoding="utf-8")
+        )
+        self.assertEqual(len(ledger["checks"]), 4)
+        self.assertTrue(ledger["human_override_used"])
+
+    def test_override_cannot_be_spent_early(self):
+        with self.assertRaisesRegex(FinalizationError, "valid only after"):
+            begin_check_attempt(self.repo, self.slug, human_override=True)
+        self.assertFalse(attempt_ledger_path(self.repo, self.slug).exists())
+
+    def test_exported_run_closes_ledger_and_next_check_starts_at_one(self):
+        attempt = begin_check_attempt(self.repo, self.slug)
+        self.finish(attempt, status="clean")
+        close_attempt_ledger(self.repo, self.slug)
+
+        next_run = begin_check_attempt(self.repo, self.slug)
+        self.assertEqual(next_run["number"], 1)
+        ledger = json.loads(
+            attempt_ledger_path(self.repo, self.slug).read_text(encoding="utf-8")
+        )
+        self.assertEqual(ledger["status"], "active")
+        self.assertEqual(len(ledger["checks"]), 1)
 
 
 class ReceiptTests(unittest.TestCase):

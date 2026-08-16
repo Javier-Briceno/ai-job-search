@@ -44,7 +44,10 @@ except ModuleNotFoundError:  # Direct execution puts tools/ on sys.path.
 
 
 RECEIPT_VERSION = 1
+ATTEMPT_LEDGER_VERSION = 1
 BUILD_DIR = ".application-build"
+MAX_STANDARD_CHECK_ATTEMPTS = 3
+MAX_HUMAN_OVERRIDE_ATTEMPTS = 1
 LATEX_ARTIFACT_SUFFIXES = (
     ".aux",
     ".fdb_latexmk",
@@ -252,11 +255,126 @@ def receipt_path(repo: Path, slug: str) -> Path:
     return repo / BUILD_DIR / validate_slug(slug) / "receipt.json"
 
 
+def attempt_ledger_path(repo: Path, slug: str) -> Path:
+    return repo / BUILD_DIR / validate_slug(slug) / "attempts.json"
+
+
+def _new_attempt_ledger(slug: str) -> dict:
+    return {
+        "version": ATTEMPT_LEDGER_VERSION,
+        "slug": slug,
+        "status": "active",
+        "human_override_used": False,
+        "checks": [],
+    }
+
+
+def _load_attempt_ledger(path: Path, slug: str) -> dict:
+    if not path.is_file():
+        return _new_attempt_ledger(slug)
+    try:
+        ledger = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise FinalizationError(f"could not read check-attempt ledger: {path}") from exc
+    if ledger.get("version") != ATTEMPT_LEDGER_VERSION:
+        raise FinalizationError("unsupported check-attempt ledger version")
+    if ledger.get("slug") != slug:
+        raise FinalizationError("check-attempt ledger belongs to another application")
+    if ledger.get("status") not in {"active", "closed"}:
+        raise FinalizationError("check-attempt ledger has an invalid status")
+    if not isinstance(ledger.get("checks"), list):
+        raise FinalizationError("check-attempt ledger has an invalid checks list")
+    return ledger
+
+
+def begin_check_attempt(
+    repo: Path,
+    slug: str,
+    *,
+    human_override: bool = False,
+) -> dict:
+    """Reserve one bounded check attempt before invoking either compiler.
+
+    An exported application closes its ledger. The next check for the same slug
+    starts a new drafting run. An unfinished run gets three ordinary checks and
+    exactly one user-authorized final check; there is no fifth attempt.
+    """
+
+    path = attempt_ledger_path(repo, slug)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    ledger = _load_attempt_ledger(path, slug)
+    if ledger["status"] == "closed":
+        ledger = _new_attempt_ledger(slug)
+
+    completed_or_started = len(ledger["checks"])
+    next_number = completed_or_started + 1
+    if next_number <= MAX_STANDARD_CHECK_ATTEMPTS:
+        if human_override:
+            raise FinalizationError(
+                "--human-override is valid only after all three standard checks"
+            )
+        override_used = False
+    elif next_number == MAX_STANDARD_CHECK_ATTEMPTS + MAX_HUMAN_OVERRIDE_ATTEMPTS:
+        if not human_override:
+            raise FinalizationError(
+                "three checks are already recorded for this application. Stop and "
+                "report the latest receipt. Only after the user explicitly authorizes "
+                "one final correction may you rerun with --human-override; do not run "
+                "xelatex, lualatex, pdftotext, pdfinfo, or diagnostic TeX copies"
+            )
+        if ledger.get("human_override_used"):
+            raise FinalizationError("the one human-authorized check was already used")
+        ledger["human_override_used"] = True
+        override_used = True
+    else:
+        raise FinalizationError(
+            "the four-check hard limit has been reached. Stop; no compiler or "
+            "diagnostic command is authorized for this application"
+        )
+
+    attempt = {
+        "number": next_number,
+        "started_at": utc_now(),
+        "finished_at": None,
+        "status": "running",
+        "human_override": override_used,
+    }
+    ledger["checks"].append(attempt)
+    path.write_text(json.dumps(ledger, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return attempt
+
+
+def finish_check_attempt(repo: Path, slug: str, number: int, status: str) -> None:
+    path = attempt_ledger_path(repo, slug)
+    ledger = _load_attempt_ledger(path, slug)
+    checks = ledger["checks"]
+    if not checks or checks[-1].get("number") != number:
+        raise FinalizationError("check-attempt ledger is out of sequence")
+    checks[-1]["finished_at"] = utc_now()
+    checks[-1]["status"] = status
+    path.write_text(json.dumps(ledger, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def close_attempt_ledger(repo: Path, slug: str) -> None:
+    path = attempt_ledger_path(repo, slug)
+    if not path.is_file():
+        return
+    ledger = _load_attempt_ledger(path, slug)
+    ledger["status"] = "closed"
+    ledger["closed_at"] = utc_now()
+    path.write_text(json.dumps(ledger, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
 def run_check(args) -> int:
     repo = Path.cwd().resolve()
     slug = validate_slug(args.slug)
     build_dir = receipt_path(repo, slug).parent
     build_dir.mkdir(parents=True, exist_ok=True)
+    attempt = begin_check_attempt(
+        repo,
+        slug,
+        human_override=getattr(args, "human_override", False),
+    )
     for stale in build_dir.glob("*-page-*.png"):
         stale.unlink()
 
@@ -264,6 +382,8 @@ def run_check(args) -> int:
         "version": RECEIPT_VERSION,
         "slug": slug,
         "checked_at": utc_now(),
+        "check_attempt": attempt["number"],
+        "human_override": attempt["human_override"],
         "status": "failed",
         "visual_approved": False,
         "documents": {},
@@ -290,6 +410,10 @@ def run_check(args) -> int:
         receipt["error"] = str(exc)
 
     path.write_text(json.dumps(receipt, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    finish_check_attempt(repo, slug, attempt["number"], receipt["status"])
+    limit = MAX_STANDARD_CHECK_ATTEMPTS + int(attempt["human_override"])
+    suffix = " (human override)" if attempt["human_override"] else ""
+    print(f"Check attempt: {attempt['number']}/{limit}{suffix}")
     print(f"Receipt: {relative_to_repo(path, repo)}")
     for label, document in receipt["documents"].items():
         print(f"\n{label.upper()}: {document['pdf']}")
@@ -383,6 +507,7 @@ def run_export(args) -> int:
         label: relative_to_repo(target, repo) for label, target in targets.items()
     }
     path.write_text(json.dumps(receipt, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    close_attempt_ledger(repo, slug)
     print(f"Exported checked application to: {relative_to_repo(destination, repo)}")
     for target in targets.values():
         print(f"  {target.name}")
@@ -399,6 +524,11 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--cover-source", required=True, type=Path)
     check.add_argument("--cv-engine", default="lualatex")
     check.add_argument("--cover-engine", default="xelatex")
+    check.add_argument(
+        "--human-override",
+        action="store_true",
+        help="allow the one final check after three recorded attempts",
+    )
     check.set_defaults(handler=run_check)
 
     export = subparsers.add_parser("export", help="export an unchanged, visually approved build")

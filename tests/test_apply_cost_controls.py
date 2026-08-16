@@ -6,6 +6,9 @@ REPO = Path(__file__).resolve().parent.parent
 APPLY = REPO / ".claude" / "commands" / "apply.md"
 REVIEWER = REPO / ".claude" / "agents" / "application-reviewer.md"
 CV_GUIDE = REPO / ".claude" / "skills" / "job-application-assistant" / "05-cv-templates.md"
+COVER_GUIDE = REPO / ".claude" / "skills" / "job-application-assistant" / "06-cover-letter-templates.md"
+WEB_GUIDE = REPO / ".claude" / "skills" / "job-application-assistant" / "09-web-research.md"
+COVER_TEMPLATE = REPO / "cover_letters" / "cover_example.tex"
 
 
 class ApplyCostControls(unittest.TestCase):
@@ -14,6 +17,11 @@ class ApplyCostControls(unittest.TestCase):
         cls.apply = APPLY.read_text(encoding="utf-8")
         cls.reviewer = REVIEWER.read_text(encoding="utf-8")
         cls.cv_guide = CV_GUIDE.read_text(encoding="utf-8")
+        cls.cover_guide = COVER_GUIDE.read_text(encoding="utf-8")
+        cls.web_guide = WEB_GUIDE.read_text(encoding="utf-8")
+        cls.cover_template = COVER_TEMPLATE.read_text(encoding="utf-8")
+        cls.apply_flat = " ".join(cls.apply.split())
+        cls.cv_guide_flat = " ".join(cls.cv_guide.split())
 
     def test_command_preserves_drafting_effort_and_manual_invocation(self):
         frontmatter = self.apply.split("---", 2)[1]
@@ -50,12 +58,40 @@ class ApplyCostControls(unittest.TestCase):
         ):
             self.assertIn(rule, self.apply)
         self.assertIn("is the sole compile/check command", self.cv_guide)
-        self.assertIn("this is never an open-ended loop", self.cv_guide)
+        self.assertIn("This is never an open-ended loop", self.cv_guide_flat)
+        self.assertIn("--human-override", self.apply)
+        self.assertIn("attempts.json", self.apply)
+        self.assertIn("rejects a fifth", self.apply)
+        self.assertIn("sole compilation", self.cover_guide)
+        self.assertIn("there is no fifth check", self.cover_guide)
+
+    def test_arbeitsagentur_uses_one_native_detail_request(self):
+        command = (
+            "bun run .agents/skills/arbeitsagentur-search/cli/src/cli.ts "
+            "detail <refnr> --format json"
+        )
+        self.assertIn(command, self.apply)
+        self.assertIn(command, self.web_guide)
+        self.assertIn("use the returned `description` unchanged", self.apply)
+        self.assertIn("Do not call WebFetch, curl", self.apply)
+        self.assertIn("reverse-engineer its JavaScript", self.web_guide)
+
+    def test_web_fallback_uses_an_explicit_temporary_directory(self):
+        self.assertIn('scratchpad_path="$(mktemp -d)"', self.web_guide)
+        self.assertIn("Copy the exact printed path", self.web_guide)
+        self.assertIn("never default an\nunset `$SCRATCHPAD`", self.web_guide)
+
+    def test_cover_template_has_deterministic_closing_blocks(self):
+        self.assertIn(r"\newcommand{\applicationclosing}", self.cover_template)
+        self.assertIn(r"\newcommand{\applicationenclosures}", self.cover_template)
+        self.assertIn(r"\noindent\enclname\\{}#1", self.cover_template)
+        self.assertNotIn(r"\closing{Mit freundlichen", self.cover_template)
+        self.assertNotIn(r"\encl{[Lebenslauf", self.cover_template)
 
     def test_company_packet_is_small_and_entity_specific(self):
         self.assertIn("must name the full legal entity", self.apply)
         self.assertIn("prune it locally to the three most useful without browsing", self.apply)
-        self.assertIn("Save no more than three relevant facts", self.apply)
+        self.assertIn("Save no more than three relevant facts", self.apply_flat)
 
     def test_reviewer_is_tool_free_and_turn_bounded(self):
         self.assertIn("name: application-reviewer", self.reviewer)

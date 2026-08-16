@@ -113,21 +113,20 @@
 \setplength{subjectbeforevskip}{1\baselineskip}
 \setplength{subjectaftervskip}{1\baselineskip}
 
-% "Anlagen" fett und ohne Doppelpunkt.
-%
-% Die Beschriftung kommt aus \enclname, NICHT aus der Beschreibung der
-% KOMA-Variable: \setkomavar*{encl}{...} bleibt wirkungslos (die Vorlage gibt
-% dann weiter "Anlage(n)" aus), waehrend der Separator sehr wohl greift.
-% \renewcaptionname ist der vorgesehene Weg, einen sprachabhaengigen Namen zu
-% ersetzen, und wirkt auch gegen babel.
-%
-% Falls hier weiterhin "Anlage(n)" steht: \encl unten loeschen und die Zeile
-% von Hand setzen, das ist deterministisch:
-%   \vspace{\baselineskip}
-%   \noindent\textbf{Anlagen}\\{}[Lebenslauf, Zeugnisse]
-% \renewcaptionname steht oben im Sprachblock, damit ein Sprachwechsel nur
-% eine Stelle betrifft. Hier bleibt nur der Separator.
-\setkomavar{enclseparator}{}
+% Elektronische Bewerbungen brauchen keinen von KOMA reservierten Bereich fuer
+% eine handschriftliche Unterschrift. \closing und \encl halten dafuer dennoch
+% konservativ Platz frei und koennen einen kurzen Brief unerwartet auf Seite 2
+% schieben. Diese beiden kleinen Bloecke setzen denselben sichtbaren Inhalt
+% deterministisch. \enclname bleibt sprachabhaengig und ist oben fett definiert.
+\newcommand{\applicationclosing}[2]{%
+  \par\nopagebreak[4]
+  \noindent #1\par
+  \vspace{1.5\baselineskip}% Platz fuer eine optionale Unterschrift
+  \noindent #2\par}
+\newcommand{\applicationenclosures}[1]{%
+  \nopagebreak[4]
+  \vspace{\baselineskip}%
+  \noindent\enclname\\{}#1\par}
 
 % ----------------------------------------------------------------------
 %     BRIEFKOPF
@@ -162,10 +161,9 @@
 
 % Unterschrift: eingescannte Unterschrift, darunter der getippte Name.
 % Die Bilddatei wird NICHT eingecheckt - *.png und *.jpg sind in .gitignore
-% gesperrt, und eine Unterschrift gehoert nicht in ein oeffentliches Repo.
-% Datei lokal ablegen und die naechste Zeile einkommentieren:
-% \setkomavar{signature}{\includegraphics[height=15mm]{unterschrift.png}\\[2mm][Vorname Nachname]}
-\setkomavar{signature}{[Vorname Nachname]}
+% gesperrt, und eine Unterschrift gehoert nicht in ein oeffentliches Repo. Im
+% zweiten Argument von \applicationclosing unten kann statt des Namens stehen:
+% \includegraphics[height=15mm]{unterschrift.png}\\[2mm][Vorname Nachname]
 
 \begin{document}
 
@@ -218,9 +216,8 @@ echten Luecke: ein Satz, sachlich, ohne Entschuldigung.]
 [Verfuegbar ab [Monat JJJJ], [XX] Stunden pro Woche.] Ueber ein Gespraech
 freue ich mich.
 
-\closing{Mit freundlichen Gr\"u\ss{}en}
-
-\encl{[Lebenslauf, Zeugnisse]}
+\applicationclosing{Mit freundlichen Gr\"u\ss{}en}{[Vorname Nachname]}
+\applicationenclosures{[Lebenslauf, Zeugnisse]}
 
 \end{letter}
 \end{document}

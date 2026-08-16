@@ -1,5 +1,5 @@
 ---
-framework_version: 2.1.1
+framework_version: 2.2.0
 ---
 
 # CV Templates and Tailoring Guide
@@ -222,8 +222,11 @@ After writing the CV and before presenting to the user, always compile and
 visually inspect the PDF. When `/apply` invokes this guide,
 `tools/finalize_application.py check` is the sole compile/check command: it
 already runs both LaTeX passes and both text extractions. Do not additionally
-run `lualatex`, `pdftotext`, or `pdfinfo` by hand. Obey `/apply`'s initial check
-plus at most two correction batches; this is never an open-ended loop.
+run `lualatex`, `pdftotext`, `pdfinfo`, or diagnostic TeX copies by hand. Obey
+`/apply`'s initial check plus at most two correction batches. A fourth check is
+allowed only after explicit user authorization and must use
+`--human-override`; the finalizer rejects a fifth. This is never an open-ended
+loop.
 
 Outside `/apply`, use this workflow:
 

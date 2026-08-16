@@ -5,7 +5,7 @@ description: >
   and preparing for interviews. Triggers on keywords like: job posting, job application, CV,
   cover letter, resume, interview prep, job fit, career, application, apply, ansøgning, stilling
 allowed-tools: Read, Glob, Grep, WebFetch, WebSearch, Bash, Edit, Write, AskUserQuestion
-framework_version: 1.3.2
+framework_version: 1.4.0
 ---
 
 # Job Application Assistant
@@ -17,7 +17,15 @@ framework_version: 1.3.2
 When the user provides a job posting (URL or text), follow this workflow:
 
 ### Step 1: Research & Evaluate Fit
-- Fetch the job posting content (use WebFetch for URLs). **A 403 is not a dead end** - follow the escalation order in `09-web-research.md` before concluding a page is unavailable, and prefer the employer's own careers posting over an aggregator listing
+- Reuse a complete cached posting first. On a cache miss, route the URL through
+  an installed portal skill's native `detail` command before any generic web
+  fetch. For Arbeitsagentur URLs this is the exact one-call route documented in
+  `09-web-research.md`. A successful portal response ends posting retrieval; do
+  not also inspect its HTML, JavaScript, or JSON-LD.
+- Only for URLs without a successful portal-native route, use WebFetch and the
+  bounded fallback in `09-web-research.md`. **A 403 is not a dead end**, but it
+  is not permission for open-ended reverse engineering. Prefer the employer's
+  own careers posting over an aggregator listing.
 - Keep the **full posting text verbatim** for Step 3b to archive - never a summary
 - Analyze the posting for required competencies, keywords, and priorities
 - Research the company (website, LinkedIn, mission, recent news), per `09-web-research.md`

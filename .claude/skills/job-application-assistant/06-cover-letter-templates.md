@@ -1,5 +1,5 @@
 ---
-framework_version: 2.0.0
+framework_version: 2.1.0
 ---
 
 # Cover Letter Template and Tailoring Guide (DIN 5008 Form B)
@@ -15,6 +15,14 @@ German application letters follow **DIN 5008 Form B**, which fixes the zones of 
 **Reference:** `cover_letters/cover_example.tex`
 
 ### Compile command
+
+During `/apply`, `tools/finalize_application.py check` is the sole compilation
+and PDF-verification command. Do not run `xelatex`, `pdftotext`, `pdfinfo`,
+temporary TeX copies, or minimal diagnostic letters around it. The finalizer
+records three standard attempts and permits one fourth attempt only after the
+user explicitly authorizes it with `--human-override`; there is no fifth check.
+
+Outside `/apply`, compile a standalone template twice with:
 
 ```bash
 cd cover_letters && xelatex -interaction=nonstopmode cover_<company>_<role>.tex
@@ -78,7 +86,10 @@ Body text is **left-aligned, ragged right — never justified.** Same rule as th
 
 ### Length
 
-**One page, always. No exceptions.** If it does not fit, cut paragraph 2 — never the margins. Shrinking the geometry breaks DIN conformance to hide a content problem.
+**One page, always. No exceptions.** Aim for roughly 160--220 body words. If it
+does not fit, remove low-relevance repetition, usually from paragraph 2; never
+shrink the margins or insert page-enlargement commands to hide a content
+problem.
 
 ## Language: follow the posting, not the employer
 
@@ -123,10 +134,10 @@ The layout is identical. The weight is not.
 | `\setkomavar{backaddress}{...}` | One-line return address in the Vermerkzone |
 | `\setkomavar{place}{...}` / `{date}{...}` | Ort und Datum |
 | `\setkomavar{subject}{...}` | Betreff |
-| `\setkomavar{signature}{...}` | Typed name below the signature |
 | `\begin{letter}{...}` | Recipient address block |
-| `\opening{...}` / `\closing{...}` | Anrede / Grußformel |
-| `\encl{...}` | Anlagen |
+| `\opening{...}` | Anrede |
+| `\applicationclosing{...}{...}` | Grußformel and typed name, without KOMA's reserved signature area |
+| `\applicationenclosures{...}` | Deterministic Anlagen block using the localized `\enclname` |
 
 ## Pitfalls
 
@@ -138,18 +149,19 @@ The layout is identical. The weight is not.
 cd cover_letters && grep -n '^!' cover_<company>_<role>.log
 ```
 
-**The `Anlagen` label comes from `\enclname`, not from the KOMA variable.** `\setkomavar*{encl}{\textbf{Anlagen}}` has no effect — the letter keeps printing `Anlage(n)` — even though `\setkomavar{enclseparator}{}` on the very next line *does* remove the colon. That split is the giveaway: the separator is a variable, the label is a language name. Use `\renewcaptionname{ngerman}{\enclname}{\textbf{Anlagen}}`, which is KOMA's mechanism for language-dependent names and survives babel.
-
-If that still prints `Anlage(n)`, drop `\encl{...}` and set the block by hand — deterministic, no variable machinery:
-
-```latex
-\vspace{\baselineskip}
-\noindent\textbf{Anlagen}\\{}[Lebenslauf, Zeugnisse]
-```
+**The stock template deliberately does not use `\closing` or `\encl`.** KOMA
+reserves conservative vertical space for those blocks, which can push otherwise
+valid one-page letters onto page 2. Use `\applicationclosing` and
+`\applicationenclosures` exactly as shipped. The latter prints the localized,
+bold `\enclname` directly and uses `\\{}` before its argument so a bracketed
+placeholder cannot be swallowed as optional line-break spacing.
 
 **Subject spacing stacks with `parskip`.** `parskip=full` already inserts a full blank line between blocks, so `subjectbeforevskip`/`subjectaftervskip` of `2\baselineskip` produce roughly four blank lines, not the two DIN 5008 wants. `1\baselineskip` each is correct with this `parskip` setting. Measure it on the compiled page rather than trusting the source.
 
-**The signature image is never committed.** `*.png` and `*.jpg` are in `.gitignore`, and a scanned signature does not belong in a public repo. Keep the file locally and uncomment the `\includegraphics` line in `\setkomavar{signature}{...}`.
+**The signature image is never committed.** `*.png` and `*.jpg` are in
+`.gitignore`, and a scanned signature does not belong in a public repo. Keep the
+file locally and place the `\includegraphics` expression in the second argument
+of `\applicationclosing`.
 
 **Six lines is a hard cap on the address block.** The Anschriftzone is 27.3 mm. A seventh line overflows into the Betreff zone and breaks the form.
 
