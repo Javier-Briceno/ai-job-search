@@ -8,6 +8,7 @@ from tools.verify_pdf import (
     FAIL,
     PASS,
     SKIP,
+    WARN,
     ToolUnavailable,
     VerificationError,
     find_disallowed_symbols,
@@ -228,7 +229,7 @@ class RunCheckSuiteTests(unittest.TestCase):
         self.assertNotIn("balanced multi-page layout", names)
 
     @patch("tools.verify_pdf.run_tool")
-    def test_layout_quality_failures_are_reported(self, mock_run_tool):
+    def test_layout_quality_failures_and_advisories_are_reported(self, mock_run_tool):
         layout = CLEAN_RAW + ("A" * 1000) + "\nProjekte\n1/2\fShort\n2/2\f"
         mock_run_tool.side_effect = [CLEAN_RAW, layout]
 
@@ -236,7 +237,20 @@ class RunCheckSuiteTests(unittest.TestCase):
         by_name = {result.name: result for result in results}
 
         self.assertEqual(by_name["no orphan section headings"].status, FAIL)
-        self.assertEqual(by_name["balanced multi-page layout"].status, FAIL)
+        self.assertEqual(by_name["balanced multi-page layout"].status, WARN)
+        self.assertEqual(suite_exit_code(results), 1)
+
+    @patch("tools.verify_pdf.run_tool")
+    def test_page_balance_warning_does_not_fail_an_otherwise_clean_pdf(self, mock_run_tool):
+        layout = CLEAN_RAW + ("A" * 1000) + "\n1/2\fShort\n2/2\f"
+        mock_run_tool.side_effect = [CLEAN_RAW, layout]
+
+        results = run_check_suite(self.pdf, check_layout_quality=True)
+        by_name = {result.name: result for result in results}
+
+        self.assertEqual(by_name["no orphan section headings"].status, PASS)
+        self.assertEqual(by_name["balanced multi-page layout"].status, WARN)
+        self.assertEqual(suite_exit_code(results, strict=True), 0)
 
     @patch("tools.verify_pdf.run_tool")
     def test_reports_wrong_page_count(self, mock_run_tool):

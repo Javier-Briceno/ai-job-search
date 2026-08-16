@@ -13,7 +13,8 @@ Two groups of checks:
   ``[Placeholder]`` text. Templates are *supposed* to be full of placeholders,
   so this would fail every template if it ran by default.
 * **CV layout heuristics**, behind ``--check-layout-quality`` - section
-  headings stranded at a page foot and a mostly empty trailing page.
+  headings stranded at a page foot are failures. A text-count estimate of page
+  balance is advisory because it cannot measure rendered whitespace reliably.
 
 ``pdftotext`` and ``pdfinfo`` come from poppler, which is **not** part of MiKTeX
 or TeX Live. When they are missing the checks that need them report ``SKIP``
@@ -248,6 +249,7 @@ def parse_page_count(pdfinfo_output):
 
 PASS = "ok"
 FAIL = "FAIL"
+WARN = "WARN"
 SKIP = "SKIP"
 
 
@@ -264,6 +266,10 @@ class CheckResult:
 
 def _result(name, offenders):
     return CheckResult(name, FAIL if offenders else PASS, offenders)
+
+
+def _advisory_result(name, offenders):
+    return CheckResult(name, WARN if offenders else PASS, offenders)
 
 
 def format_results(results, max_details=8):
@@ -480,7 +486,9 @@ def run_check_suite(
             _result("no orphan section headings", find_orphan_section_headings(layout))
         )
         results.append(
-            _result("balanced multi-page layout", find_unbalanced_pages(layout))
+            _advisory_result(
+                "balanced multi-page layout", find_unbalanced_pages(layout)
+            )
         )
 
     return results
@@ -526,7 +534,10 @@ def build_parser():
     parser.add_argument(
         "--check-layout-quality",
         action="store_true",
-        help="fail on orphaned CV section headings or a mostly empty trailing page",
+        help=(
+            "fail on orphaned CV section headings and warn on a text-count "
+            "estimate of page imbalance"
+        ),
     )
     parser.add_argument(
         "--strict",

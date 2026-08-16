@@ -24,11 +24,19 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 try:
-    from tools.verify_pdf import FAIL, SKIP, VerificationError, extract_text, run_check_suite
+    from tools.verify_pdf import (
+        FAIL,
+        SKIP,
+        WARN,
+        VerificationError,
+        extract_text,
+        run_check_suite,
+    )
 except ModuleNotFoundError:  # Direct execution puts tools/ on sys.path.
     from verify_pdf import (  # type: ignore
         FAIL,
         SKIP,
+        WARN,
         VerificationError,
         extract_text,
         run_check_suite,
@@ -296,7 +304,18 @@ def run_check(args) -> int:
     if receipt["status"] != "clean":
         print(f"\nFAILED: {receipt.get('error', 'one or more checks failed')}", file=sys.stderr)
         return 1
-    print("\nCLEAN: inspect every preview/PDF, then run export with --visual-approved.")
+    has_advisories = any(
+        result["status"] == WARN
+        for document in receipt["documents"].values()
+        for result in document["checks"]
+    )
+    if has_advisories:
+        print(
+            "\nCLEAN WITH ADVISORIES: hard checks passed. Judge every WARN during "
+            "visual review, then run export with --visual-approved."
+        )
+    else:
+        print("\nCLEAN: inspect every preview/PDF, then run export with --visual-approved.")
     return 0
 
 

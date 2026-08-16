@@ -5,6 +5,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 APPLY = REPO / ".claude" / "commands" / "apply.md"
 REVIEWER = REPO / ".claude" / "agents" / "application-reviewer.md"
+CV_GUIDE = REPO / ".claude" / "skills" / "job-application-assistant" / "05-cv-templates.md"
 
 
 class ApplyCostControls(unittest.TestCase):
@@ -12,6 +13,7 @@ class ApplyCostControls(unittest.TestCase):
     def setUpClass(cls):
         cls.apply = APPLY.read_text(encoding="utf-8")
         cls.reviewer = REVIEWER.read_text(encoding="utf-8")
+        cls.cv_guide = CV_GUIDE.read_text(encoding="utf-8")
 
     def test_command_preserves_drafting_effort_and_manual_invocation(self):
         frontmatter = self.apply.split("---", 2)[1]
@@ -30,6 +32,30 @@ class ApplyCostControls(unittest.TestCase):
         self.assertIn("checked within 30 days", self.apply)
         self.assertIn("tools/finalize_application.py check", self.apply)
         self.assertIn("tools/finalize_application.py export", self.apply)
+
+    def test_verbatim_cache_cannot_be_a_summary_with_a_heading(self):
+        for rule in (
+            "The heading alone does not make a cache valid",
+            "translation, paraphrase, structured field summary",
+            "without translating, summarizing, normalizing its bullets",
+        ):
+            self.assertIn(rule, self.apply)
+
+    def test_layout_retries_are_bounded_and_balance_is_advisory(self):
+        for rule in (
+            "at most three times",
+            "initial build plus at most two coherent correction batches",
+            "page-balance `WARN` is visual evidence",
+            "page-balance `WARN` alone is not a reason to revise",
+        ):
+            self.assertIn(rule, self.apply)
+        self.assertIn("is the sole compile/check command", self.cv_guide)
+        self.assertIn("this is never an open-ended loop", self.cv_guide)
+
+    def test_company_packet_is_small_and_entity_specific(self):
+        self.assertIn("must name the full legal entity", self.apply)
+        self.assertIn("prune it locally to the three most useful without browsing", self.apply)
+        self.assertIn("Save no more than three relevant facts", self.apply)
 
     def test_reviewer_is_tool_free_and_turn_bounded(self):
         self.assertIn("name: application-reviewer", self.reviewer)

@@ -1,5 +1,5 @@
 ---
-framework_version: 2.1.0
+framework_version: 2.1.1
 ---
 
 # CV Templates and Tailoring Guide
@@ -218,10 +218,17 @@ Do not reintroduce it. If a posting explicitly asks for referees, supply them in
 
 ## Compile-and-Inspect Loop (MANDATORY)
 
-After writing the CV and before presenting to the user, always compile and visually inspect the PDF. Iterate until the layout is clean. Workflow:
+After writing the CV and before presenting to the user, always compile and
+visually inspect the PDF. When `/apply` invokes this guide,
+`tools/finalize_application.py check` is the sole compile/check command: it
+already runs both LaTeX passes and both text extractions. Do not additionally
+run `lualatex`, `pdftotext`, or `pdfinfo` by hand. Obey `/apply`'s initial check
+plus at most two correction batches; this is never an open-ended loop.
+
+Outside `/apply`, use this workflow:
 
 1. Run `lualatex -interaction=nonstopmode main_<company>_<role>.tex` **twice** - the `n/m` footer resolves from the `.aux`, so one run after a length change prints the previous total (a 1-page CV footed `1/2` is a stale `.aux`, not an overflow)
-2. Check the output page count: prefer 1 page, allow 2 when the second page contains relevant evidence, and never exceed 2
+2. Check the output page count: use 1 page when the grounded content fits naturally; otherwise keep a substantive second page, and never exceed 2
 3. Read the PDF via the Read tool and inspect it visually
 4. Check for **orphaned entries**: a `\cventry` title line must never sit alone at the foot of the page with its bullets pushed over
 
@@ -237,6 +244,12 @@ Remove redundancy first. If the spill is still only a few lines, `\enlargethispa
 
 **Problem: page 2 has substantial relevant content**
 Keep the second page and balance the break. A two-page CV is valid when page 2 carries material evidence rather than repetition or filler. Check that no heading or entry is orphaned and that page 2 is not mostly empty.
+
+Treat the automated page-balance result as an advisory only. It counts
+extracted characters, not rendered whitespace, and must never cause grounded
+evidence to be added, removed, or moved solely to cross its threshold. When a
+break needs adjustment, move it before a complete preceding entry or section
+and inspect the result visually.
 
 **Problem: page 3 appears**
 Cut content using relevance-weighted cutting; never reduce margins, font size, or line spacing to hide a three-page content problem.
@@ -289,9 +302,13 @@ Two independent causes, both easy to avoid:
 
 **Add this to the step 5d checks**: after extracting the text layer, confirm every experience entry shows a start *and* an end separated by an ASCII hyphen. Because the failure is silent and invisible in the PDF, the candidate otherwise discovers it only while filling in the application form.
 
-## Page Budget - Prefer 1 Page, Hard 2-Page Limit
+## Page Budget - Natural 1 Page, Hard 2-Page Limit
 
-One page is the preferred target, not a reason to delete useful evidence. A second page is appropriate when the candidate has relevant experience, projects, education, or achievements that materially strengthen this specific application. The CV must never exceed 2 pages.
+One page is appropriate when the grounded, relevant content fits naturally. It
+is not an optimization target once a good two-page draft exists. A second page
+is appropriate when the candidate has relevant experience, projects,
+education, or achievements that materially strengthen this specific
+application. The CV must never exceed 2 pages.
 
 Use these as the one-page baseline. Expand selectively for a justified second page:
 
@@ -308,7 +325,10 @@ Use these as the one-page baseline. Expand selectively for a justified second pa
 | Publikationen | commented out - academic track only |
 | References | **no section** - see below |
 
-Before using page 2, remove duplication and low-signal filler. Do not remove unique, posting-relevant evidence merely to claim a one-page CV. Never squeeze margins, font size, or line spacing to force either target.
+Before using page 2, remove duplication and low-signal filler. Do not remove
+unique, posting-relevant evidence merely to claim a one-page CV or satisfy an
+automated balance ratio. Never squeeze margins, font size, or line spacing to
+force either target.
 
 The second page is justified when at least one of these is true:
 

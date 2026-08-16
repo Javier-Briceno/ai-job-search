@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from tools.finalize_application import (
     FinalizationError,
+    check_document,
     load_clean_receipt,
     run_export,
     safe_filename_component,
@@ -15,6 +16,7 @@ from tools.finalize_application import (
     validate_slug,
     verify_receipt_hashes,
 )
+from tools.verify_pdf import CheckResult, FAIL, WARN
 
 
 class NamingTests(unittest.TestCase):
@@ -138,6 +140,53 @@ class ReceiptTests(unittest.TestCase):
         destination = self.repo / "deliveries" / "2026-08-15" / "test_role"
         self.assertTrue((destination / "Sara-Smani-CV.pdf").is_file())
         self.assertTrue((destination / "Sara-Smani-Cover-Letter.pdf").is_file())
+
+
+class DocumentCheckTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.repo = Path(self.temp_dir.name)
+        self.build_dir = self.repo / ".application-build" / "test_role"
+        self.build_dir.mkdir(parents=True)
+        self.source = self.repo / "cv" / "main_test.tex"
+        self.pdf = self.source.with_suffix(".pdf")
+        self.source.parent.mkdir()
+        self.source.write_text("source", encoding="utf-8")
+        self.pdf.write_bytes(b"pdf")
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def run_document_check(self, result):
+        with (
+            patch(
+                "tools.finalize_application.compile_document",
+                return_value=(self.pdf, []),
+            ),
+            patch("tools.finalize_application.run_check_suite", return_value=[result]),
+            patch("tools.finalize_application.extract_text", return_value="readable text"),
+            patch("tools.finalize_application.render_previews", return_value=([], None)),
+        ):
+            return check_document(
+                label="cv",
+                source=self.source,
+                engine="lualatex",
+                repo=self.repo,
+                build_dir=self.build_dir,
+            )
+
+    def test_page_balance_warning_keeps_receipt_mechanically_clean(self):
+        document = self.run_document_check(
+            CheckResult("balanced multi-page layout", WARN, ["page ratio 20%"])
+        )
+        self.assertTrue(document["clean"])
+        self.assertEqual(document["checks"][0]["status"], WARN)
+
+    def test_hard_failure_still_blocks_clean_receipt(self):
+        document = self.run_document_check(
+            CheckResult("no placeholders", FAIL, ["[Company]"])
+        )
+        self.assertFalse(document["clean"])
 
 
 if __name__ == "__main__":

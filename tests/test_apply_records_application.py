@@ -108,6 +108,17 @@ class ApplyRecordsApplication(unittest.TestCase):
             "genuinely quiet application from the follow-up offer",
         )
 
+    def test_redraft_marker_is_not_duplicated(self):
+        for rule in (
+            "never append a duplicate `redrafted` marker",
+            "collapse them to one while preserving every other note",
+        ):
+            self.assertIn(
+                rule,
+                self.step_6b,
+                "re-running /apply would otherwise grow a useless list of identical markers",
+            )
+
     def test_seen_jobs_is_left_alone(self):
         self.assertIn(
             "Do not modify `job_scraper/seen_jobs.json`",
