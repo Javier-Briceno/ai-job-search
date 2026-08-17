@@ -368,6 +368,22 @@ Replace all placeholder tokens in the search queries file with the user's actual
   - Priority 3: Adjacent roles they could pivot into
   - Priority 4: Broader roles (wider net)
 
+### 9. Initialize private tracking identity
+
+Follow `10-application-history.md`. Derive a short, stable lowercase profile ID
+from the confirmed candidate identity, show it to the user, and initialize the
+gitignored tracking config with:
+
+```text
+python tools/application_history.py init --profile-id <stable-profile-id>
+```
+
+If `.job-search-profile.json` already exists, read it first and preserve its
+`profile_id`; never replace it merely because `/setup` was re-run. Keep the
+default `experiment_id` as `baseline`. A deliberate experiment change uses the
+helper's `experiment` command later, immediately before the new workflow is
+used.
+
 ---
 
 ## Step 4: Confirm & Next Steps
@@ -384,8 +400,9 @@ Present a summary:
 > - `.claude/skills/job-application-assistant/07-interview-prep.md` - STAR examples from your experience
 > - `cv/main_example.tex` - Your LaTeX CV template
 > - `.claude/skills/job-scraper/search-queries.md` - Job search queries for `/scrape`
+> - `.job-search-profile.json` - Private tracking identity (gitignored)
 >
-> **Privacy note:** the files above now contain your personal data and are *tracked by git*.
+> **Privacy note:** the profile and template files above now contain your personal data and are *tracked by git*; `.job-search-profile.json` is the gitignored exception.
 > A GitHub fork of the template is always public (forks of public repos cannot be made
 > private), so do not push these commits to a fork. Keep them local, or push to a private
 > repository instead - see SETUP.md section 8 for the private-remote setup.
@@ -411,3 +428,5 @@ If Path A left any STAR stubs in `07-interview-prep.md`, also note:
 - Can be re-run with `--section <name>` to update specific sections (e.g., `/setup --section search` to reconfigure job search queries without re-doing the full profile).
 - Section 9 (search) in Path C, and the equivalent follow-up questions in Path A, proactively suggest role types the user may not have considered.
 - At the end, suggest running `/scrape` and `/apply` with a test job posting.
+- Tracking identity is stable and idempotent: re-running setup never splits one
+  candidate's history across multiple profile IDs.

@@ -15,6 +15,13 @@ per-file diff commands.
 
 ### Changed
 
+- Added privacy-preserving, append-only application event history alongside the
+  existing tracker. Each event carries a stable profile/application ID, explicit
+  stage time, workflow commit, and experiment label; `/apply`, `/outcome`, and
+  approved `/gmail-sync` updates feed it through a deterministic standard-library
+  helper. `/html-report` can now compare experiment cohorts and time in stage
+  while preserving the original tracker schema for existing users.
+
 - Updated `arbeitsagentur-search` from the retired `pc/v4/jobs` search route to
   the supported `pc/v6/jobs` route and adapted its parser to the v6 result
   schema. The existing v4 job-detail route remains in use.

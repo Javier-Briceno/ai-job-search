@@ -132,8 +132,20 @@ For every row the user approved:
    YYYY-MM-DD (via /gmail-sync): <one-line summary of what the email said>. Source: "<subject>" from <sender>, <email date>.
    ```
 3. If no archive folder/`outcome.md` exists yet for a matched application, create the folder and a minimal `outcome.md` following the exact format in `documents/README.md`, same as `/outcome` would. This is the normal case for a row that was still `drafted`: `/apply` Step 6b writes the tracker row and only `/outcome` Step 3 ever creates the archive, so the folder legitimately does not exist yet. It is also the case for a row added by hand.
+4. **Event history:** follow `10-application-history.md` and record every
+   approved factual signal through `tools/application_history.py` after the
+   tracker/archive writes succeed. Initialize `.job-search-profile.json` from
+   the confirmed candidate identity if this legacy profile lacks it. Map the
+   approved signal to the most specific event (`applied`, `assessment`, an
+   interview stage, `offer`, or the final resolution), use the email event date,
+   resulting tracker status, and preserve the one-line email evidence in
+   `reason_or_feedback` with `{"source":"gmail-sync"}` metadata. Omit
+   `--new-application`. Report a history-write failure without rolling back the
+   approved state changes or pretending the event was saved.
 
-Rows the user skipped are left untouched - no tracker write, no `outcome.md` write - but their message IDs are still marked processed in Step 8, so the same email isn't re-proposed every run.
+Rows the user skipped are left untouched - no tracker write, no `outcome.md`
+write, and no history event - but their message IDs are still marked processed
+in Step 8, so the same email isn't re-proposed every run.
 
 ---
 

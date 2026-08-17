@@ -72,6 +72,8 @@ REQUIRED_IGNORE_RULES = [
     "documents/postings/**",
     "documents/interview/**",
     "job_search_tracker.csv",
+    ".job-search-profile.json",
+    "application_events.csv",
     "gmail_sync/",
     "reports/",
     "upskill/*.md",

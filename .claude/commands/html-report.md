@@ -1,6 +1,9 @@
 # /html-report - Generate Application Tracker Dashboard
 
-Generate a self-contained HTML dashboard from `job_search_tracker.csv` and the application archives under `documents/applications/`. The output is a single `.html` file — no server, no dependencies — that can be opened directly in a browser.
+Generate a self-contained HTML dashboard from `job_search_tracker.csv`, optional
+append-only `application_events.csv`, and the application archives under
+`documents/applications/`. The output is a single `.html` file — no server, no
+dependencies — that can be opened directly in a browser.
 
 ## Step 0: Parse Arguments
 
@@ -20,6 +23,14 @@ Read in parallel:
    `date`, `company`, `sector`, `role`, `role_type`, `channel`, `status`, `contact_person`, `fit_rating`, `notes`, `cv_file`, `cover_letter_file`, `source`
 
 2. **`documents/applications/*/outcome.md`** — for each resolved application, read the outcome file to get the exact interview stages reached (the checkboxes) and any notes. Merge this into the matching tracker row by company+role fuzzy match (lowercase, ignore punctuation). If an archive exists for a row but there is no match, attach it as extra context anyway.
+
+3. **`application_events.csv`** — optional append-only history governed by
+   `10-application-history.md`. Validate its exact header before using it. Group
+   rows by `profile_id`, `experiment_id`, and unique `application_id`; never
+   count raw event rows as applications. If absent, keep generating the existing
+   tracker dashboard and state that experiment/timing metrics are unavailable.
+   If malformed, report the validation error and omit history-derived panels
+   rather than guessing.
 
 Status normalisation — map tracker values to six canonical buckets before computing stats:
 - `drafted` → **Drafted** (documents written by `/apply`, not yet submitted)
@@ -49,6 +60,23 @@ From the normalised data compute:
 - **By year/season:** group by the `date` field (which may be a year like `2025` or a full date)
 - **Funnel rates:** what % progressed past resume screen (reached Interview or beyond)
 - **Rejection rate:** Rejected/Closed ÷ Total with a resolved status (exclude Active)
+
+When valid event history exists, also compute:
+
+- **History coverage:** unique tracked attempts with events, plus counts missing
+  an explicit `applied` or resolution event
+- **Stage conversion by experiment:** Applied → first interview → Offer →
+  Hired, with the unique-application sample size beside every rate
+- **Median elapsed time:** Drafted → Applied, Applied → first interview, first
+  interview → Offer, and Applied → final resolution; include only applications
+  with both explicit timestamps required by that duration
+- **Largest observed funnel drop:** the adjacent stage with the largest count
+  decrease for each experiment, labelled descriptive when the cohort has fewer
+  than 10 submitted applications
+
+Keep profiles separated by default. Never infer missing stages from status or
+free-text notes for history-derived statistics, and never treat missing history
+as a zero-duration transition.
 
 ---
 
@@ -105,6 +133,10 @@ Write a single self-contained HTML file. All CSS is inline in a `<style>` block.
 2. **By sector bar** (horizontal) — company count per sector, sorted descending
 3. **By channel bar** — online / referral / other
 4. **Application funnel** (horizontal bar) — Applied → Interview → Offer → Hired, each bar = count reaching that stage
+5. **Experiment comparison** (grouped horizontal bars, only with event history)
+   — one group per `profile_id` + `experiment_id`, annotated with cohort size
+6. **Time in stage** (compact table or bars, only with event history) — median
+   elapsed days and eligible sample size for each explicit timestamp pair
 
 Build each chart as a hand-written `<svg>` element: compute bar lengths/doughnut arc angles from the stats in Step 2 and emit the `<rect>`/`<path>`/`<circle>` and `<text>` elements directly — no charting library, no `<canvas>`. Each `<svg>` has `role="img"` and an `aria-label` summarizing the chart (e.g. "Status breakdown: 3 Active, 2 Interview, 1 Offer"). Wrap each in a `<div class="chart-card">` with an `<h3>` title above. Remember to escape any label/value text drawn into `<text>` nodes per the escaping rule above.
 
@@ -130,6 +162,8 @@ Then present:
 > - Applications sent: N · drafted, not yet sent: N
 > - Active: N · Interview: N · Hired: N · Rejected/Closed: N
 > - Funnel: N% progressed past resume screen
+> - History: <coverage and active experiment, or unavailable>
+> - Observed bottleneck: <stage and cohort size, only when history supports it>
 >
 > Re-run `/html-report` any time after adding new entries via `/apply` or `/outcome` to refresh the dashboard.
 
@@ -142,3 +176,7 @@ Then present:
 - **Idempotent.** Re-running overwrites the previous report at the same path — no accumulation.
 - **Graceful on sparse data.** With only a few rows (as now), charts render correctly for small N; the table is the primary value. Do not suppress charts just because N is small.
 - **No fabrication.** Every number in the report comes directly from the CSV or outcome files. Do not infer or estimate missing fields.
+- **Comparable experiments.** History-derived comparisons follow
+  `10-application-history.md`: explicit timestamps only, unique application IDs,
+  profile separation, visible sample sizes, and no causal claim from small
+  cohorts.

@@ -4,6 +4,7 @@ You are recording what happened to a job application: progress updates (intervie
 
 - `job_search_tracker.csv` - the status column that `/scrape` and `/rank` use for dedup and exclusion
 - `documents/applications/<company>_<role>/` - the per-application archive (posting, submitted drafts, `outcome.md`) that `/setup` Path A mines to calibrate `04-job-evaluation.md` and surface STAR candidates
+- `application_events.csv` - the append-only stage history used for bottleneck and experiment analysis, written only through `tools/application_history.py`
 
 `/outcome` writes the data; `/setup` interprets it. This command never edits the evaluation framework or profile files itself.
 
@@ -36,6 +37,10 @@ Follow these steps **in order**.
 
    **`drafted` rows are listed but never counted as quiet** - nothing was sent, so nobody is late replying. List them under their own heading ("Drafted, not yet submitted"), leave **days quiet** and **follow-ups sent** blank, and keep them out of the follow-up offer above.
 4. Derive the archive folder name: `documents/applications/<company>_<role>/` - lowercase, underscores for spaces (the convention documented in `documents/README.md`). Check whether the folder and an `outcome.md` already exist - if so, you are updating, not creating.
+5. Read `.job-search-profile.json` and follow `10-application-history.md`. If
+   this is a legacy profile without the config, derive a stable lowercase ID
+   from the confirmed candidate identity in `CLAUDE.md` and initialize it before
+   recording an event. Never copy another profile's ignored config.
 
 ---
 
@@ -99,6 +104,11 @@ Enter this branch from the `followup` argument (Step 0) or from the offer under 
 
 - Append `followed up YYYY-MM-DD` to the row's `notes` column (Step 4's rule applies: append a dated note, never restructure the CSV).
 - Save the final note as `followup_YYYY-MM-DD.md` in the application's archive folder. Safe by documented convention: `/setup` reads only the four named archive files and ignores extras (the same rule that covers `/interview`'s prep files), and `documents/applications/**` is gitignored personal data.
+- After those writes succeed, record a `followed_up` event through
+  `tools/application_history.py` with the actual send date, current status, and
+  channel. Do not use `--new-application`; the helper attaches it to the latest
+  matching attempt. If history recording fails, report the partial failure and
+  keep the truthful tracker/archive updates.
 
 If the user decides not to send, log nothing.
 
@@ -145,6 +155,16 @@ Update the matched row's `status` column using the canonical spellings from **Tr
 
 **Moving a row off `drafted`:** rows written by `/apply` Step 6b carry the date the documents were drafted, not the date they were sent. Whenever this step advances such a row to any other status - `applied`, or straight to `interview` or `rejected` when the user reports an outcome for something they submitted without recording it - overwrite its `date` column with the actual submission date. The `date` column is read as "applied on" by `/notion-sync` and drives `/html-report`'s year/season grouping and this command's own days-quiet count, so leaving the draft date in place would misreport the application.
 
+After the tracker and archive contain the truthful update, record each newly
+reported stage through `tools/application_history.py record` under the contract
+in `10-application-history.md`. Use the specific event (`applied`,
+`phone_screen`, `technical_interview`, `case_interview`, `final_round`, `offer`,
+or the final resolution), its actual date, the resulting tracker status, and
+verbatim reason or feedback when supplied. Multiple stages reported together
+produce multiple events with their own dates. Omit `--new-application`; a legacy
+row with no history receives an application ID automatically. Never backfill an
+unstated date, and never claim an event was saved if the helper fails.
+
 ---
 
 ## Step 5: Calibration Handoff
@@ -166,6 +186,7 @@ Summarize what was recorded:
 > - `documents/applications/<company>_<role>/outcome.md` - status: <status>, <what changed>
 > - Archived: <which of cv_draft.tex / cover_letter.tex / job_posting.md were copied or fetched, and which were skipped and why>
 > - Tracker: status → <new status>
+> - History: <events recorded, application_id, active experiment; or explicit failure>
 >
 > [Calibration suggestion from Step 5, if triggered]
 
@@ -184,7 +205,7 @@ If the recorded status is `hired`, congratulate the user warmly first - this is 
 1. **Write data, don't interpret it.** The archive and tracker are the outputs; calibration belongs to `/setup`. This command never edits profile or framework files.
 2. **The archived version is the submitted version.** Existing files in the application folder are never overwritten by fresher drafts.
 3. **Never fabricate.** A dead posting URL gets a user-pasted copy or an explicit "unavailable" stub, not a reconstruction. Feedback is recorded as the user reports it.
-4. **Stay schema-compatible.** `outcome.md` follows the format in `documents/README.md` exactly (`in_progress` is the one addition, for open applications); the tracker keeps its columns.
+4. **Stay schema-compatible.** `outcome.md` follows the format in `documents/README.md` exactly (`in_progress` is the one addition, for open applications); the tracker keeps its columns, and event history follows `10-application-history.md`.
 5. **Idempotent updates.** Re-running on the same application appends new stages and notes; it never duplicates folders, rows, or history.
 6. **Follow-ups: draft only, never send.** The follow-up branch produces text for the user to send themselves. It never emails, messages, or submits anything, and it must not be wired to tools that do.
 7. **Follow-ups: no new claims.** Every substantive statement in a follow-up or thank-you note comes from the archived submitted materials. Rule 3 applies with no exceptions.

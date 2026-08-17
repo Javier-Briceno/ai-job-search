@@ -115,6 +115,14 @@ A record of past job applications. Each subfolder is one application.
 
 You can maintain these folders by hand, or let the **`/outcome`** command do it: it records progress updates and final results conversationally, archives the submitted drafts and, if `/apply` has not already written it, the posting text, keeps `outcome.md` in the format below, and updates `job_search_tracker.csv` in the same step.
 
+The mutable tracker and these human-readable archives are complemented by
+root-level `application_events.csv`, an append-only machine-readable history.
+`/apply`, `/outcome`, and approved `/gmail-sync` updates write it through
+`tools/application_history.py`; do not edit it by hand. It keeps distinct
+application attempts, stage timestamps, profile IDs, workflow commits, and
+experiment labels for later funnel and bottleneck evaluation. Both it and
+`.job-search-profile.json` are gitignored personal state.
+
 **Subfolder naming:** `<company>_<role>` — lowercase, underscores for spaces.
 
 Examples:
